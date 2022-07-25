@@ -25,6 +25,11 @@ func (stream *Stream) Read(v interface{}) error {
 	return stream.decoder.Decode(v)
 }
 
+func (stream *Stream) Skip() error {
+	return stream.decoder.Skip()
+
+}
+
 // MakeStream creates a xmpp stream connected to a specific server.
 func MakeStream(domain string) (*Stream, error) {
 	address := fmt.Sprintf("%v:%v", domain, PORT)
@@ -61,7 +66,6 @@ func MakeStream(domain string) (*Stream, error) {
 	utils.Logger.Info("Stream created successfully")
 
 	feature := &features{}
-	fmt.Println(feature)
 	if err := stream.Read(feature); err != nil {
 		utils.Logger.Errorf("Could not read features: %v", err)
 	}
