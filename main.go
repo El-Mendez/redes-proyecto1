@@ -1,7 +1,14 @@
 package main
 
-import "fmt"
+import (
+	"github.com/el-mendez/redes-proyecto1/protocol"
+	"github.com/el-mendez/redes-proyecto1/util"
+)
 
 func main() {
-	fmt.Println("Hello World")
+	utils.InitializeLogger()
+	defer utils.Logger.Sync()
+
+	stream, _ := protocol.MakeStream("alumchat.fun")
+	defer stream.Close()
 }
