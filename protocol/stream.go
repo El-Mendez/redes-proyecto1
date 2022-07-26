@@ -11,7 +11,6 @@ import (
 
 const PORT = 5222
 
-// Stream represents a XMLStream abstraction for the XMPP protocol. It does loggging.
 type Stream struct {
 	conn    net.Conn
 	decoder *xml.Decoder
@@ -85,13 +84,19 @@ func (stream *Stream) Restart(domain string) error {
 		return err
 	}
 
-	tag, err := stream.NextElement()
+	tag, err := stream.nextTag()
 	if err != nil && tag.Name != (xml.Name{Space: "http://etherx.jabber.org/streams", Local: "stream"}) {
 		utils.Logger.Errorf("Did not get stream opening tag: %v", err)
 		return fmt.Errorf("expected start tag")
 	}
 
-	utils.Logger.Info("Stream created successfully")
+	utils.Logger.Info("Stream restarted successfully")
+
+	feature := &features{}
+	if err := stream.Read(feature); err != nil {
+		utils.Logger.Errorf("Could not read features: %v", err)
+	}
+
 	return nil
 }
 
