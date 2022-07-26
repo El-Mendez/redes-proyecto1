@@ -11,46 +11,26 @@ import (
 
 const PORT = 5222
 
+// Stream represents a XMLStream abstraction for the XMPP protocol. It does loggging.
 type Stream struct {
 	conn    net.Conn
 	decoder *xml.Decoder
 }
 
+// Write sends a list of bytes through the stream to the server.
 func (stream *Stream) Write(data []byte) error {
 	utils.Logger.Debugf("sending: %v", string(data))
 	_, err := stream.conn.Write(data)
 	return err
 }
 
+// Read acts like xml.Unmarshal but for the next element in the stream.
 func (stream *Stream) Read(v interface{}) error {
 	_, e := stream.NextElement()
 	return xml.Unmarshal(e, v)
 }
 
-func writeToken(enc *xml.Encoder, token xml.Token) {
-	successful(enc.EncodeToken(token), "Could not encode token %v")
-	successful(enc.Flush(), "Could not flush after writing token %v")
-}
-
-// NextElement This is just for logging purposes
-func (stream *Stream) nextElement() (*xml.StartElement, []byte) {
-	var temp struct {
-		Inner []byte `xml:",innerxml"`
-	}
-	start, _ := stream.nextTag()
-	end := start.End()
-	successful(stream.decoder.DecodeElement(&temp, start), "Could not decode next xml element: %v")
-
-	buffer := new(bytes.Buffer)
-	enc := xml.NewEncoder(buffer)
-
-	writeToken(enc, *start)
-	buffer.Write(temp.Inner)
-	writeToken(enc, end)
-
-	return start, buffer.Bytes()
-}
-
+// NextElement returns the opening tag of the next XML element received and a []byte with the complete element.
 func (stream *Stream) NextElement() (*xml.StartElement, []byte) {
 	tag, e := stream.nextElement()
 	utils.Logger.Debugf("received: %v", string(e))
@@ -58,61 +38,77 @@ func (stream *Stream) NextElement() (*xml.StartElement, []byte) {
 	return tag, e
 }
 
+// Skip ignores the next XML element received through the stream.
 func (stream *Stream) Skip() {
 	_, e := stream.nextElement()
 	utils.Logger.Debugf("skipped: %v", string(e))
 }
 
-// MakeStream creates a xmpp stream connected to a specific server.
-func MakeStream(domain string) (*Stream, error) {
+// MakeStream creates a xmpp stream connected to a specific server. Returns nil on initiation error.
+func MakeStream(domain string) *Stream {
 	address := fmt.Sprintf("%v:%v", domain, PORT)
 
 	utils.Logger.Infof("Creating connection to %v", address)
 
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		utils.Logger.Warnf("Could not create connection to %v", address)
-		return nil, err
+		utils.Logger.Warnf("Could not create connection to %v: %v", address, err)
+		return nil
 	}
 
 	stream := &Stream{conn, xml.NewDecoder(conn)}
 
 	// Start the server communication
 	if err := stream.Write([]byte(xml.Header)); err != nil {
-		utils.Logger.Warnf("Could send connection initiation to %v", domain)
-		return nil, err
+		utils.Logger.Warnf("Could send xml header to server: %v", err)
+		conn.Close()
+		return nil
 	}
 
+	// Start the stream with the xmpp server (the tags <stream:stream/>)
+	if err := stream.Restart(domain); err != nil {
+		utils.Logger.Errorf("Could not start stream at initiation: %v", err)
+		conn.Close()
+		return nil
+	}
+
+	return stream
+}
+
+// Restart recreates a stream with the server when the server state resets.
+func (stream *Stream) Restart(domain string) error {
 	// Start the stream
 	// TODO xml escape the domain address
 	if err := stream.Write([]byte("<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' " +
 		"to='" + domain + "' version='1.0'>")); err != nil {
-		utils.Logger.Warnf("Could send stream invitation to %v", domain)
-		return nil, err
+		utils.Logger.Errorf("Could not send stream opening tag: %v", err)
+		return err
 	}
 
-	tag, err := stream.nextTag()
+	tag, err := stream.NextElement()
 	if err != nil && tag.Name != (xml.Name{Space: "http://etherx.jabber.org/streams", Local: "stream"}) {
-		return nil, fmt.Errorf("expected start tag")
+		utils.Logger.Errorf("Did not get stream opening tag: %v", err)
+		return fmt.Errorf("expected start tag")
 	}
 
 	utils.Logger.Info("Stream created successfully")
-
-	feature := &features{}
-	if err := stream.Read(feature); err != nil {
-		utils.Logger.Errorf("Could not read features: %v", err)
-	}
-
-	return stream, nil
+	return nil
 }
 
+// Close gracefully closes the XMPP connection.
 func (stream *Stream) Close() {
 	utils.Logger.Info("Closing Stream")
 	if err := stream.Write([]byte("</stream:stream>")); err != nil {
 		utils.Logger.Warn("Could not close stream gracefully")
 	}
+	utils.Successful(stream.conn.Close(), "Could not completely close the underlying TCP stream: %v")
 }
 
+/* ===============================================
+			BEGIN PRIVATE PART
+   =============================================== */
+
+// nextTag returns the opening tag of the next XML element in the stream.
 func (stream *Stream) nextTag() (*xml.StartElement, error) {
 	for {
 		token, err := stream.decoder.Token()
@@ -129,8 +125,26 @@ func (stream *Stream) nextTag() (*xml.StartElement, error) {
 	}
 }
 
-func successful(err error, format string) {
-	if err != nil {
-		utils.Logger.Fatalf(format, err)
+func writeToken(enc *xml.Encoder, token xml.Token) {
+	utils.Successful(enc.EncodeToken(token), "Could not encode token %v")
+	utils.Successful(enc.Flush(), "Could not flush after writing token %v")
+}
+
+// nextElement returns the opening tag of the next XML element and the complete element in []byte form.
+func (stream *Stream) nextElement() (*xml.StartElement, []byte) {
+	var temp struct {
+		Inner []byte `xml:",innerxml"`
 	}
+	start, _ := stream.nextTag()
+	end := start.End()
+	utils.Successful(stream.decoder.DecodeElement(&temp, start), "Could not decode next xml element: %v")
+
+	buffer := new(bytes.Buffer)
+	enc := xml.NewEncoder(buffer)
+
+	writeToken(enc, *start)
+	buffer.Write(temp.Inner)
+	writeToken(enc, end)
+
+	return start, buffer.Bytes()
 }

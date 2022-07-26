@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/el-mendez/redes-proyecto1/protocol"
 	"github.com/el-mendez/redes-proyecto1/util"
 )
@@ -21,8 +22,8 @@ func main() {
 		utils.Logger.Fatal("You entered an invalid account.")
 	}
 
-	stream, _ := protocol.MakeStream(jid.Domain)
-	defer stream.Close()
-
-	_, _ = protocol.SignIn(&jid, stream, password)
+	_, err := protocol.SignIn(&jid, password)
+	if err != nil {
+		fmt.Printf("Could not log in: %v", err)
+	}
 }
