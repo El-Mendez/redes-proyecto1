@@ -21,16 +21,10 @@ func SignIn(jid *JID, stream *Stream, password string) (*Client, error) {
 	utils.Logger.Debug("Sent Login request")
 
 	// Check for response
-	tag, err := stream.NextTag()
-	if err != nil {
-		return nil, err
-	}
+	tag, _ := stream.NextElement()
 
 	if tag.Name.Local == "success" {
 		utils.Logger.Info("Successfully logged in.")
-		if err := stream.decoder.Skip(); err != nil {
-			return nil, err
-		}
 		return &Client{stream: stream, jid: jid}, nil
 
 	} else if tag.Name.Local == "failure" {

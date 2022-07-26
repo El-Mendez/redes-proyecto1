@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	utils "github.com/el-mendez/redes-proyecto1/util"
@@ -22,12 +23,44 @@ func (stream *Stream) Write(data []byte) error {
 }
 
 func (stream *Stream) Read(v interface{}) error {
-	return stream.decoder.Decode(v)
+	_, e := stream.NextElement()
+	return xml.Unmarshal(e, v)
 }
 
-func (stream *Stream) Skip() error {
-	return stream.decoder.Skip()
+func writeToken(enc *xml.Encoder, token xml.Token) {
+	successful(enc.EncodeToken(token), "Could not encode token %v")
+	successful(enc.Flush(), "Could not flush after writing token %v")
+}
 
+// NextElement This is just for logging purposes
+func (stream *Stream) nextElement() (*xml.StartElement, []byte) {
+	var temp struct {
+		Inner []byte `xml:",innerxml"`
+	}
+	start, _ := stream.nextTag()
+	end := start.End()
+	successful(stream.decoder.DecodeElement(&temp, start), "Could not decode next xml element: %v")
+
+	buffer := new(bytes.Buffer)
+	enc := xml.NewEncoder(buffer)
+
+	writeToken(enc, *start)
+	buffer.Write(temp.Inner)
+	writeToken(enc, end)
+
+	return start, buffer.Bytes()
+}
+
+func (stream *Stream) NextElement() (*xml.StartElement, []byte) {
+	tag, e := stream.nextElement()
+	utils.Logger.Debugf("received: %v", string(e))
+
+	return tag, e
+}
+
+func (stream *Stream) Skip() {
+	_, e := stream.nextElement()
+	utils.Logger.Debugf("skipped: %v", string(e))
 }
 
 // MakeStream creates a xmpp stream connected to a specific server.
@@ -45,7 +78,7 @@ func MakeStream(domain string) (*Stream, error) {
 	stream := &Stream{conn, xml.NewDecoder(conn)}
 
 	// Start the server communication
-	if err := stream.Write([]byte("<?xml version='1.0' encoding='utf-8'?>")); err != nil {
+	if err := stream.Write([]byte(xml.Header)); err != nil {
 		utils.Logger.Warnf("Could send connection initiation to %v", domain)
 		return nil, err
 	}
@@ -58,7 +91,7 @@ func MakeStream(domain string) (*Stream, error) {
 		return nil, err
 	}
 
-	tag, err := stream.NextTag()
+	tag, err := stream.nextTag()
 	if err != nil && tag.Name != (xml.Name{Space: "http://etherx.jabber.org/streams", Local: "stream"}) {
 		return nil, fmt.Errorf("expected start tag")
 	}
@@ -70,7 +103,6 @@ func MakeStream(domain string) (*Stream, error) {
 		utils.Logger.Errorf("Could not read features: %v", err)
 	}
 
-	utils.Logger.Info("Stream features ignored successfully")
 	return stream, nil
 }
 
@@ -81,7 +113,7 @@ func (stream *Stream) Close() {
 	}
 }
 
-func (stream *Stream) NextTag() (*xml.StartElement, error) {
+func (stream *Stream) nextTag() (*xml.StartElement, error) {
 	for {
 		token, err := stream.decoder.Token()
 		if err != nil {
@@ -94,5 +126,11 @@ func (stream *Stream) NextTag() (*xml.StartElement, error) {
 		case xml.StartElement:
 			return &tag, nil
 		}
+	}
+}
+
+func successful(err error, format string) {
+	if err != nil {
+		utils.Logger.Fatalf(format, err)
 	}
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"github.com/el-mendez/redes-proyecto1/protocol"
 	"github.com/el-mendez/redes-proyecto1/util"
 )
@@ -10,21 +10,19 @@ func main() {
 	utils.InitializeLogger()
 	defer utils.Logger.Sync()
 
-	var input string
-	fmt.Print("Ingresa tu JID: ")
-	fmt.Scanln(&input)
+	var account, password string
 
-	jid, _ := protocol.JIDFromString(input)
+	flag.StringVar(&account, "account", "", "The JID account to log in with")
+	flag.StringVar(&password, "password", "", "The matching password for the account")
+	flag.Parse()
+
+	jid, ok := protocol.JIDFromString(account)
+	if !ok {
+		utils.Logger.Fatal("You entered an invalid account.")
+	}
 
 	stream, _ := protocol.MakeStream(jid.Domain)
 	defer stream.Close()
 
-	var password string
-	fmt.Print("Ingresa tu contraseña: ")
-	fmt.Scanln(&password)
-
-	fmt.Println(password)
-
-	client, _ := protocol.SignIn(&jid, stream, password)
-	fmt.Println(client)
+	_, _ = protocol.SignIn(&jid, stream, password)
 }
