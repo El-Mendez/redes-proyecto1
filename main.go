@@ -22,8 +22,10 @@ func main() {
 		utils.Logger.Fatal("You entered an invalid account.")
 	}
 
-	_, err := protocol.SignIn(&jid, password)
+	client, err := protocol.SignIn(&jid, password)
 	if err != nil {
 		fmt.Printf("Could not log in: %v", err)
 	}
+
+	client.Close()
 }

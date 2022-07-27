@@ -92,6 +92,11 @@ func (stream *Stream) Restart(domain string) error {
 
 	utils.Logger.Info("Stream restarted successfully")
 
+	// I don't really know why, but without this it gets stuck in an endless loop. Might be a bug on my xml library.
+	type features struct {
+		XMLName xml.Name `xml:"http://etherx.jabber.org/streams features"`
+	}
+
 	feature := &features{}
 	if err := stream.Read(feature); err != nil {
 		utils.Logger.Errorf("Could not read features: %v", err)

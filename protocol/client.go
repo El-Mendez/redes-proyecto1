@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/base64"
+	"encoding/xml"
 	"fmt"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 )
@@ -10,6 +11,8 @@ type Client struct {
 	stream *Stream
 	jid    *JID
 }
+
+type Stanza = interface{}
 
 func SignIn(jid *JID, password string) (*Client, error) {
 	stream := MakeStream(jid.Domain)
@@ -25,6 +28,8 @@ func SignIn(jid *JID, password string) (*Client, error) {
 	}
 
 	utils.Successful(client.stream.Restart(jid.Domain), "could not restart stream after authorization successful: %v")
+
+	client.bind()
 
 	return client, nil
 }
@@ -58,4 +63,57 @@ func (client *Client) authorize(password string) error {
 
 func (client *Client) Close() {
 	client.stream.Close()
+}
+
+func (client *Client) bind() {
+	// Build the request IQ
+	utils.Logger.Info("Attempting to bind")
+
+	iq := IQ{ID: GenerateID(), Type: "set"}
+	contents := bindIQ{Resource: client.jid.DeviceName}
+	utils.Successful(iq.addContents(contents), "Could not parse the contents of the Bind IQ: %v")
+
+	client.sendStanza(iq)
+	r := client.getStanza()
+
+	riq, ok := r.(*IQ)
+	if !ok {
+		utils.Logger.Fatalf("Expected a IQ as a binding response, instead got: %T", r)
+	}
+
+	rbind := bindIQ{}
+	utils.Successful(riq.getContents(&rbind), "Expected the bind response Stanza to be IQBind: %v")
+
+	new_jid, ok := JIDFromString(rbind.JID)
+	if !ok {
+		utils.Logger.Fatalf("Could not parse the server binded JID %v", rbind.JID)
+	}
+
+	utils.Logger.Infof("Successfully binded as %v", new_jid.String())
+	*client.jid = new_jid
+
+}
+
+func (client *Client) sendStanza(s Stanza) {
+	data, err := xml.Marshal(s)
+	if err != nil {
+		utils.Logger.Fatal("Could not parse Stanza: %v", s)
+	}
+	utils.Successful(client.stream.Write(data), "Could not send stanza: %v")
+}
+
+func (client *Client) getStanza() Stanza {
+	tag, stanza := client.stream.NextElement()
+
+	switch tag.Name.Local {
+	case "iq":
+		utils.Logger.Info("Received a IQ")
+		iq := &IQ{}
+		utils.Successful(xml.Unmarshal(stanza, iq), "Could not unparse a iq: %v")
+		return iq
+	default:
+		utils.Logger.Errorf("Expected success/failure tag at log in but got: . %s", tag.Name)
+	}
+
+	return nil
 }

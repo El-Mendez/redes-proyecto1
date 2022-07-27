@@ -12,7 +12,7 @@ type IQ struct {
 	To       string   `xml:"to,attr,omitempty"`
 	From     string   `xml:"from,attr,omitempty"`
 	Contents string   `xml:",innerxml"`
-	Error    *Error   `xml:"error"`
+	//Error    *Error   `xml:"error"`
 }
 
 func (iq *IQ) addContents(v interface{}) error {
@@ -36,4 +36,12 @@ func GenerateID() string {
 		s[i] = CHARACTERS[rand.Intn(len(CHARACTERS))]
 	}
 	return string(s)
+}
+
+// ---- the specific iq body types
+
+type bindIQ struct {
+	XMLName  xml.Name `xml:"urn:ietf:params:xml:ns:xmpp-bind bind"`
+	Resource string   `xml:"resource,omitempty"`
+	JID      string   `xml:"jid,omitempty"`
 }
