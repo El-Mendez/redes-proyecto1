@@ -27,5 +27,6 @@ func main() {
 		fmt.Printf("Could not log in: %v", err)
 	}
 
+	client.SendMessage("mendez@alumchat.fun", "Hello Warudo!")
 	client.Close()
 }

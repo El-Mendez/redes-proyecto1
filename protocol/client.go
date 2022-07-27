@@ -66,6 +66,17 @@ func (client *Client) Close() {
 	client.stream.Close()
 }
 
+func (client *Client) SendMessage(to string, body string) {
+	message := Message{
+		Type: "chat",
+		To:   to,
+		From: client.jid.String(),
+		Body: body,
+	}
+
+	client.sendStanza(message)
+}
+
 func (client *Client) bind() {
 	// Build the request IQ
 	utils.Logger.Info("Attempting to bind")
@@ -134,6 +145,11 @@ func (client *Client) getStanza() Stanza {
 		iq := &IQ{}
 		utils.Successful(xml.Unmarshal(stanza, iq), "Could not unparse a iq: %v")
 		return iq
+	case "message":
+		utils.Logger.Info("Received a message")
+		message := &Message{}
+		utils.Successful(xml.Unmarshal(stanza, message), "Could not unparse message: %v")
+		return message
 	default:
 		utils.Logger.Errorf("Expected success/failure tag at log in but got: . %s", tag.Name)
 	}
