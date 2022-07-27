@@ -14,12 +14,49 @@ type Client struct {
 
 type Stanza = interface{}
 
-func SignIn(jid *JID, password string) (*Client, error) {
+func SignUp(jid *JID, password string) (*Client, error) {
+	utils.Logger.Info("Attempting to create channel and signup.")
+
 	stream := MakeStream(jid.Domain)
 	if stream == nil {
 		return nil, fmt.Errorf("could not connect to %v", jid.Domain)
 	}
 
+	client := &Client{jid: jid, stream: stream}
+	id := GenerateID()
+
+	request := IQ{ID: id, Type: "set"}
+	content := registerQuery{Username: jid.Username, Password: password}
+	utils.Successful(request.addContents(content), "Could not parse sign up query: %v")
+	client.sendStanza(request)
+
+	stanza := client.getStanza()
+	iq, ok := stanza.(*IQ)
+	if !ok || iq.ID != id {
+		utils.Logger.Fatalf("Expected a login IQ stanza, instead got: %T=%v", stanza)
+	}
+
+	if iq.Type != "result" {
+		utils.Logger.Infof("Could not create account: %v", jid.BaseJid())
+		client.Close()
+		return nil, fmt.Errorf("username already exists")
+	}
+
+	return logIn(jid, password, stream)
+}
+
+func LogIn(jid *JID, password string) (*Client, error) {
+	utils.Logger.Info("Attempting to create channel and login.")
+
+	stream := MakeStream(jid.Domain)
+	if stream == nil {
+		return nil, fmt.Errorf("could not connect to %v", jid.Domain)
+	}
+
+	return logIn(jid, password, stream)
+}
+
+func logIn(jid *JID, password string, stream *Stream) (*Client, error) {
 	client := &Client{jid: jid, stream: stream}
 
 	if err := client.authorize(password); err != nil {

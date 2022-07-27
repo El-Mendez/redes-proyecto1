@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/el-mendez/redes-proyecto1/protocol"
 	"github.com/el-mendez/redes-proyecto1/util"
 )
@@ -22,11 +21,13 @@ func main() {
 		utils.Logger.Fatal("You entered an invalid account.")
 	}
 
-	client, err := protocol.SignIn(&jid, password)
-	if err != nil {
-		fmt.Printf("Could not log in: %v", err)
-	}
+	//client, err := protocol.LogIn(&jid, password)
+	//if err != nil {
+	//	fmt.Printf("Could not log in: %v", err)
+	//}
+	//
+	//client.SendMessage("mendez@alumchat.fun", "Hello Warudo!")
 
-	client.SendMessage("mendez@alumchat.fun", "Hello Warudo!")
-	client.Close()
+	protocol.SignUp(&jid, password)
+	//client.Close()
 }

@@ -53,3 +53,10 @@ type rosterQuery struct {
 type rosterItem struct {
 	Jid string `xml:"jid,attr"`
 }
+
+type registerQuery struct {
+	XMLName  xml.Name `xml:"jabber:iq:register query"`
+	Username string   `xml:"username"`
+	Password string   `xml:"password"`
+	Email    string   `xml:"email"`
+}
