@@ -40,8 +40,16 @@ func GenerateID() string {
 
 // ---- the specific iq body types
 
-type bindIQ struct {
+type bindQuery struct {
 	XMLName  xml.Name `xml:"urn:ietf:params:xml:ns:xmpp-bind bind"`
 	Resource string   `xml:"resource,omitempty"`
 	JID      string   `xml:"jid,omitempty"`
+}
+
+type rosterQuery struct {
+	XMLName     xml.Name     `xml:"jabber:iq:roster query"`
+	RosterItems []rosterItem `xml:"item"`
+}
+type rosterItem struct {
+	Jid string `xml:"jid,attr"`
 }

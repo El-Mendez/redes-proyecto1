@@ -31,6 +31,7 @@ func SignIn(jid *JID, password string) (*Client, error) {
 
 	client.bind()
 
+	client.askRoster()
 	return client, nil
 }
 
@@ -70,7 +71,7 @@ func (client *Client) bind() {
 	utils.Logger.Info("Attempting to bind")
 
 	iq := IQ{ID: GenerateID(), Type: "set"}
-	contents := bindIQ{Resource: client.jid.DeviceName}
+	contents := bindQuery{Resource: client.jid.DeviceName}
 	utils.Successful(iq.addContents(contents), "Could not parse the contents of the Bind IQ: %v")
 
 	client.sendStanza(iq)
@@ -81,7 +82,7 @@ func (client *Client) bind() {
 		utils.Logger.Fatalf("Expected a IQ as a binding response, instead got: %T", r)
 	}
 
-	rbind := bindIQ{}
+	rbind := bindQuery{}
 	utils.Successful(riq.getContents(&rbind), "Expected the bind response Stanza to be IQBind: %v")
 
 	new_jid, ok := JIDFromString(rbind.JID)
@@ -92,6 +93,28 @@ func (client *Client) bind() {
 	utils.Logger.Infof("Successfully binded as %v", new_jid.String())
 	*client.jid = new_jid
 
+}
+
+func (client *Client) askRoster() {
+	// Build the request IQ
+	utils.Logger.Info("Attempting to bind")
+
+	iq := IQ{ID: GenerateID(), Type: "get", From: client.jid.String(), To: client.jid.BaseJid()}
+	contents := rosterQuery{}
+	utils.Successful(iq.addContents(contents), "Could not parse the contents of the Roster IQ: %v")
+
+	client.sendStanza(iq)
+	r := client.getStanza()
+
+	riq, ok := r.(*IQ)
+	if !ok {
+		utils.Logger.Fatalf("Expected a IQ as a roster response, instead got: %T", r)
+	}
+
+	rbind := rosterQuery{}
+	utils.Successful(riq.getContents(&rbind), "Expected the roster response Stanza to be RosterQuery: %v")
+
+	fmt.Println(rbind.RosterItems)
 }
 
 func (client *Client) sendStanza(s Stanza) {
