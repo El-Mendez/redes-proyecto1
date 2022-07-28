@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"fmt"
+	"github.com/el-mendez/redes-proyecto1/protocol/stanzas"
+	"github.com/el-mendez/redes-proyecto1/protocol/stanzas/query"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 )
 
@@ -11,8 +13,6 @@ type Client struct {
 	stream *Stream
 	jid    *JID
 }
-
-type Stanza = interface{}
 
 func SignUp(jid *JID, password string) (*Client, error) {
 	utils.Logger.Info("Attempting to create channel and signup.")
@@ -23,17 +23,22 @@ func SignUp(jid *JID, password string) (*Client, error) {
 	}
 
 	client := &Client{jid: jid, stream: stream}
-	id := GenerateID()
+	id := stanzas.GenerateID()
 
-	request := IQ{ID: id, Type: "set"}
-	content := registerQuery{Username: jid.Username, Password: password}
-	utils.Successful(request.addContents(content), "Could not parse sign up query: %v")
+	request := stanzas.NewIQ(&stanzas.IQParams{
+		ID:   id,
+		Type: "set",
+		Query: &query.RegisterQuery{
+			Username: jid.Username,
+			Password: password,
+		},
+	})
 	client.sendStanza(request)
 
-	stanza := client.getStanza()
-	iq, ok := stanza.(*IQ)
+	response := client.getStanza()
+	iq, ok := response.(*stanzas.IQ)
 	if !ok || iq.ID != id {
-		utils.Logger.Fatalf("Expected a login IQ stanza, instead got: %T=%v", stanza)
+		utils.Logger.Fatalf("Expected a login IQ stanza, instead got: %T=%v", response)
 	}
 
 	if iq.Type != "result" {
@@ -104,38 +109,42 @@ func (client *Client) Close() {
 }
 
 func (client *Client) SendMessage(to string, body string) {
-	message := Message{
+	message := stanzas.Message{
 		Type: "chat",
 		To:   to,
 		From: client.jid.String(),
 		Body: body,
 	}
 
-	client.sendStanza(message)
+	client.sendStanza(&message)
 }
 
 func (client *Client) bind() {
 	// Build the request IQ
 	utils.Logger.Info("Attempting to bind")
 
-	iq := IQ{ID: GenerateID(), Type: "set"}
-	contents := bindQuery{Resource: client.jid.DeviceName}
-	utils.Successful(iq.addContents(contents), "Could not parse the contents of the Bind IQ: %v")
+	request := stanzas.NewIQ(&stanzas.IQParams{
+		ID:   stanzas.GenerateID(),
+		Type: "set",
+		Query: &query.BindQuery{
+			Resource: client.jid.DeviceName,
+		},
+	})
+	client.sendStanza(request)
 
-	client.sendStanza(iq)
-	r := client.getStanza()
+	response := client.getStanza()
 
-	riq, ok := r.(*IQ)
+	riq, ok := response.(*stanzas.IQ)
 	if !ok {
-		utils.Logger.Fatalf("Expected a IQ as a binding response, instead got: %T", r)
+		utils.Logger.Fatalf("Expected a IQ as a binding response, instead got: %T", response)
 	}
 
-	rbind := bindQuery{}
-	utils.Successful(riq.getContents(&rbind), "Expected the bind response Stanza to be IQBind: %v")
+	binded := query.BindQuery{}
+	utils.Successful(riq.GetContents(&binded), "Expected the bind response Stanza to be IQBind: %v")
 
-	new_jid, ok := JIDFromString(rbind.JID)
+	new_jid, ok := JIDFromString(binded.JID)
 	if !ok {
-		utils.Logger.Fatalf("Could not parse the server binded JID %v", rbind.JID)
+		utils.Logger.Fatalf("Could not parse the server binded JID %v", binded.JID)
 	}
 
 	utils.Logger.Infof("Successfully binded as %v", new_jid.String())
@@ -147,25 +156,29 @@ func (client *Client) askRoster() {
 	// Build the request IQ
 	utils.Logger.Info("Attempting to bind")
 
-	iq := IQ{ID: GenerateID(), Type: "get", From: client.jid.String(), To: client.jid.BaseJid()}
-	contents := rosterQuery{}
-	utils.Successful(iq.addContents(contents), "Could not parse the contents of the Roster IQ: %v")
+	request := stanzas.NewIQ(&stanzas.IQParams{
+		ID:    stanzas.GenerateID(),
+		Type:  "get",
+		To:    client.jid.BaseJid(),
+		From:  client.jid.String(),
+		Query: &query.RosterQuery{},
+	})
+	client.sendStanza(request)
 
-	client.sendStanza(iq)
 	r := client.getStanza()
 
-	riq, ok := r.(*IQ)
+	riq, ok := r.(*stanzas.IQ)
 	if !ok {
 		utils.Logger.Fatalf("Expected a IQ as a roster response, instead got: %T", r)
 	}
 
-	rbind := rosterQuery{}
-	utils.Successful(riq.getContents(&rbind), "Expected the roster response Stanza to be RosterQuery: %v")
+	rbind := query.RosterQuery{}
+	utils.Successful(riq.GetContents(&rbind), "Expected the roster response Stanza to be RosterQuery: %v")
 
 	fmt.Println(rbind.RosterItems)
 }
 
-func (client *Client) sendStanza(s Stanza) {
+func (client *Client) sendStanza(s stanzas.Stanza) {
 	data, err := xml.Marshal(s)
 	if err != nil {
 		utils.Logger.Fatal("Could not parse Stanza: %v", s)
@@ -173,22 +186,22 @@ func (client *Client) sendStanza(s Stanza) {
 	utils.Successful(client.stream.Write(data), "Could not send stanza: %v")
 }
 
-func (client *Client) getStanza() Stanza {
+func (client *Client) getStanza() stanzas.Stanza {
 	tag, stanza := client.stream.NextElement()
 
 	switch tag.Name.Local {
 	case "iq":
 		utils.Logger.Info("Received a IQ")
-		iq := &IQ{}
-		utils.Successful(xml.Unmarshal(stanza, iq), "Could not unparse a iq: %v")
+		iq := &stanzas.IQ{}
+		utils.Successful(xml.Unmarshal(stanza, iq), "Could not unparse a query: %v")
 		return iq
 	case "message":
 		utils.Logger.Info("Received a message")
-		message := &Message{}
+		message := &stanzas.Message{}
 		utils.Successful(xml.Unmarshal(stanza, message), "Could not unparse message: %v")
 		return message
 	default:
-		utils.Logger.Errorf("Expected success/failure tag at log in but got: . %s", tag.Name)
+		utils.Logger.Errorf("Expected a iq/message tag, instead got: %v", tag.Name)
 	}
 
 	return nil

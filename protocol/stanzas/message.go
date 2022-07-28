@@ -1,4 +1,4 @@
-package protocol
+package stanzas
 
 import "encoding/xml"
 
@@ -9,4 +9,8 @@ type Message struct {
 	To      string   `xml:"to,attr,omitempty"`
 	From    string   `xml:"from,attr,omitempty"`
 	Body    string   `xml:"body"`
+}
+
+func (message *Message) isStanza() bool {
+	return true
 }
