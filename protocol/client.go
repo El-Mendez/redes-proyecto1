@@ -282,16 +282,15 @@ func (client *Client) handleSending() {
 }
 
 func (client *Client) pipeReceiving() {
-	defer func() {
-		if a := recover(); a != nil {
-			if errors.Is(a, )
-		}
-	}()
-
 	for !client.isClosed.Get() {
 		s, err := client.getStanza()
-		if err != nil && !(errors.Is(err, net.ErrClosed) && client.isClosed.Get()) {
-			utils.Logger.Errorf("Could not receive stanza: %v", err)
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) && client.isClosed.Get() {
+				utils.Logger.Info("Connection closed. Removing receiving pipe.")
+				return
+			} else {
+				utils.Logger.Errorf("Could not receive stanza: %v", err)
+			}
 		}
 
 		client.incoming <- s
