@@ -3,15 +3,27 @@ package protocol
 import (
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"github.com/el-mendez/redes-proyecto1/protocol/stanzas"
 	"github.com/el-mendez/redes-proyecto1/protocol/stanzas/query"
 	utils "github.com/el-mendez/redes-proyecto1/util"
+	"net"
 )
 
 type Client struct {
-	stream *Stream
-	jid    *JID
+	stream  *Stream
+	jid     *JID
+	Send    chan<- stanzas.Stanza
+	Receive <-chan stanzas.Stanza
+
+	outgoing <-chan stanzas.Stanza
+	incoming chan<- stanzas.Stanza
+	isClosed utils.AtomicBool
+}
+
+func (client *Client) FullJid() string {
+	return client.jid.String()
 }
 
 func SignUp(jid *JID, password string) (*Client, error) {
@@ -33,9 +45,13 @@ func SignUp(jid *JID, password string) (*Client, error) {
 			Password: password,
 		},
 	}
-	client.sendStanza(request)
+	utils.Successful(client.sendStanza(request), "Could not send signup Stanza.")
 
-	response := client.getStanza()
+	response, err := client.getStanza()
+	if err != nil {
+		return nil, err
+	}
+
 	iq, ok := response.(*stanzas.IQ)
 	if !ok || iq.ID != id {
 		utils.Logger.Fatalf("Expected a login IQ stanza, instead got: %T=%v", response, response)
@@ -43,7 +59,7 @@ func SignUp(jid *JID, password string) (*Client, error) {
 
 	if iq.Type != "result" {
 		utils.Logger.Infof("Could not create account: %v", jid.BaseJid())
-		client.Close()
+		client.stream.Close()
 		return nil, fmt.Errorf("username already exists")
 	}
 
@@ -62,7 +78,18 @@ func LogIn(jid *JID, password string) (*Client, error) {
 }
 
 func logIn(jid *JID, password string, stream *Stream) (*Client, error) {
-	client := &Client{jid: jid, stream: stream}
+	toServer := make(chan stanzas.Stanza)
+	fromServer := make(chan stanzas.Stanza)
+
+	client := &Client{
+		jid:     jid,
+		stream:  stream,
+		Send:    toServer,
+		Receive: fromServer,
+
+		outgoing: toServer,
+		incoming: fromServer,
+	}
 
 	if err := client.authorize(password); err != nil {
 		client.Close()
@@ -73,7 +100,9 @@ func logIn(jid *JID, password string, stream *Stream) (*Client, error) {
 
 	client.bind()
 
-	client.askRoster()
+	go client.pipeReceiving()
+	go client.handleSending()
+
 	return client, nil
 }
 
@@ -88,7 +117,11 @@ func (client *Client) authorize(password string) error {
 	utils.Logger.Debug("Sent Login request")
 
 	// Check for response
-	tag, _ := client.stream.NextElement()
+	tag, _, err := client.stream.NextElement()
+	if err != nil {
+		return err
+	}
+
 	switch tag.Name.Local {
 	case "success":
 		utils.Logger.Info("Successfully logged in.")
@@ -105,18 +138,23 @@ func (client *Client) authorize(password string) error {
 }
 
 func (client *Client) Close() {
+	client.isClosed.Set(true)
+
+	close(client.Send)
+	close(client.incoming)
+
 	client.stream.Close()
 }
 
 func (client *Client) SendMessage(to string, body string) {
-	message := stanzas.Message{
+	var message stanzas.Stanza = &stanzas.Message{
 		Type: "chat",
 		To:   to,
 		From: client.jid.String(),
 		Body: body,
 	}
 
-	client.sendStanza(&message)
+	client.Send <- message
 }
 
 func (client *Client) bind() {
@@ -130,10 +168,14 @@ func (client *Client) bind() {
 			Resource: client.jid.DeviceName,
 		},
 	}
-	client.sendStanza(request)
+	utils.Successful(client.sendStanza(request), "Could not send bind request stanza.")
 
 	// As binding only happens before logging in, we know the next Stanza must be the Binding response
-	response, ok := client.getStanza().(*stanzas.IQ)
+	r, err := client.getStanza()
+	if err != nil {
+		utils.Logger.Fatalf("Could not bind the session: %v", err)
+	}
+	response, ok := r.(*stanzas.IQ)
 	if !ok {
 		utils.Logger.Fatalf("Expected a IQ as a binding response, instead got: %T", response)
 	}
@@ -163,19 +205,7 @@ func (client *Client) askRoster() {
 		From:  client.jid.String(),
 		Query: &query.RosterQuery{},
 	}
-	client.sendStanza(request)
-
-	response, ok := client.getStanza().(*stanzas.IQ)
-	if !ok {
-		utils.Logger.Fatalf("Expected a IQ as a roster response, instead got: %T", response)
-	}
-
-	roster, ok := response.Query.(*query.RosterQuery)
-	if !ok {
-		utils.Logger.Fatalf("Expected the roster request response to contain to be of roster type, instead got: %T", roster)
-	}
-
-	fmt.Println(roster.RosterItems)
+	client.Send <- request
 }
 
 func (client *Client) DeleteAccount() error {
@@ -188,9 +218,13 @@ func (client *Client) DeleteAccount() error {
 		Type:  "set",
 		Query: &query.UnregisterQuery{},
 	}
-	client.sendStanza(request)
+	client.Send <- request
 
-	response := client.getStanza()
+	response, err := client.getStanza()
+	if err != nil {
+		return err
+	}
+
 	iq, ok := response.(*stanzas.IQ)
 	if !ok || iq.ID != id {
 		utils.Logger.Fatalf("Expected a response IQ stanza, instead got: %T=%v", response, response)
@@ -206,31 +240,60 @@ func (client *Client) DeleteAccount() error {
 	return nil
 }
 
-func (client *Client) sendStanza(s stanzas.Stanza) {
+func (client *Client) sendStanza(s stanzas.Stanza) error {
 	data, err := xml.Marshal(s)
 	if err != nil {
 		utils.Logger.Fatal("Could not parse Stanza: %v", s)
 	}
-	utils.Successful(client.stream.Write(data), "Could not send stanza: %v")
+	return client.stream.Write(data)
 }
 
-func (client *Client) getStanza() stanzas.Stanza {
-	tag, stanza := client.stream.NextElement()
+func (client *Client) getStanza() (stanzas.Stanza, error) {
+	tag, stanza, err := client.stream.NextElement()
+	if err != nil {
+		return nil, err
+	}
 
 	switch tag.Name.Local {
 	case "iq":
 		utils.Logger.Info("Received a IQ")
 		iq := &stanzas.IQ{}
 		utils.Successful(xml.Unmarshal(stanza, iq), "Could not unparse a query: %v")
-		return iq
+		return iq, nil
 	case "message":
 		utils.Logger.Info("Received a message")
 		message := &stanzas.Message{}
 		utils.Successful(xml.Unmarshal(stanza, message), "Could not unparse message: %v")
-		return message
+		return message, nil
 	default:
 		utils.Logger.Errorf("Expected a iq/message tag, instead got: %v", tag.Name)
 	}
 
-	return nil
+	return nil, nil
+}
+
+func (client *Client) handleSending() {
+	for s := range client.outgoing {
+		err := client.sendStanza(s)
+		if err != nil && !(errors.Is(err, net.ErrClosed) && client.isClosed.Get()) {
+			utils.Logger.Errorf("Could not send %T stanza: %v", s, err)
+		}
+	}
+}
+
+func (client *Client) pipeReceiving() {
+	defer func() {
+		if a := recover(); a != nil {
+			if errors.Is(a, )
+		}
+	}()
+
+	for !client.isClosed.Get() {
+		s, err := client.getStanza()
+		if err != nil && !(errors.Is(err, net.ErrClosed) && client.isClosed.Get()) {
+			utils.Logger.Errorf("Could not receive stanza: %v", err)
+		}
+
+		client.incoming <- s
+	}
 }

@@ -26,16 +26,23 @@ func (stream *Stream) Write(data []byte) error {
 
 // Read acts like xml.Unmarshal but for the next element in the stream.
 func (stream *Stream) Read(v any) error {
-	_, e := stream.NextElement()
+	_, e, err := stream.NextElement()
+	if err != nil {
+		return err
+	}
 	return xml.Unmarshal(e, v)
 }
 
 // NextElement returns the opening tag of the next XML element received and a []byte with the complete element.
-func (stream *Stream) NextElement() (*xml.StartElement, []byte) {
-	tag, e := stream.nextElement()
+func (stream *Stream) NextElement() (*xml.StartElement, []byte, error) {
+	tag, e, err := stream.nextElement()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	utils.Logger.Debugf("received: %v", string(e))
 
-	return tag, e
+	return tag, e, nil
 }
 
 // MakeStream creates a xmpp stream connected to a specific server. Returns nil on initiation error.
@@ -135,11 +142,15 @@ func writeToken(enc *xml.Encoder, token xml.Token) {
 }
 
 // nextElement returns the opening tag of the next XML element and the complete element in []byte form.
-func (stream *Stream) nextElement() (*xml.StartElement, []byte) {
+func (stream *Stream) nextElement() (*xml.StartElement, []byte, error) {
 	var temp struct {
 		Inner []byte `xml:",innerxml"`
 	}
-	start, _ := stream.nextTag()
+	start, err := stream.nextTag()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	end := start.End()
 	utils.Successful(stream.decoder.DecodeElement(&temp, start), "Could not decode next xml element: %v")
 
@@ -150,5 +161,5 @@ func (stream *Stream) nextElement() (*xml.StartElement, []byte) {
 	buffer.Write(temp.Inner)
 	writeToken(enc, end)
 
-	return start, buffer.Bytes()
+	return start, buffer.Bytes(), nil
 }
