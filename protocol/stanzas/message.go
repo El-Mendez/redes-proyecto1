@@ -11,6 +11,4 @@ type Message struct {
 	Body    string   `xml:"body"`
 }
 
-func (message *Message) isStanza() bool {
-	return true
-}
+func (message *Message) isStanza() {}

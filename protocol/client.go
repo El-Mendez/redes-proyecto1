@@ -25,20 +25,20 @@ func SignUp(jid *JID, password string) (*Client, error) {
 	client := &Client{jid: jid, stream: stream}
 	id := stanzas.GenerateID()
 
-	request := stanzas.NewIQ(&stanzas.IQParams{
+	var request stanzas.Stanza = &stanzas.IQ{
 		ID:   id,
 		Type: "set",
 		Query: &query.RegisterQuery{
 			Username: jid.Username,
 			Password: password,
 		},
-	})
+	}
 	client.sendStanza(request)
 
 	response := client.getStanza()
 	iq, ok := response.(*stanzas.IQ)
 	if !ok || iq.ID != id {
-		utils.Logger.Fatalf("Expected a login IQ stanza, instead got: %T=%v", response)
+		utils.Logger.Fatalf("Expected a login IQ stanza, instead got: %T=%v", response, response)
 	}
 
 	if iq.Type != "result" {
@@ -123,59 +123,87 @@ func (client *Client) bind() {
 	// Build the request IQ
 	utils.Logger.Info("Attempting to bind")
 
-	request := stanzas.NewIQ(&stanzas.IQParams{
+	var request stanzas.Stanza = &stanzas.IQ{
 		ID:   stanzas.GenerateID(),
 		Type: "set",
 		Query: &query.BindQuery{
 			Resource: client.jid.DeviceName,
 		},
-	})
+	}
 	client.sendStanza(request)
 
-	response := client.getStanza()
-
-	riq, ok := response.(*stanzas.IQ)
+	// As binding only happens before logging in, we know the next Stanza must be the Binding response
+	response, ok := client.getStanza().(*stanzas.IQ)
 	if !ok {
 		utils.Logger.Fatalf("Expected a IQ as a binding response, instead got: %T", response)
 	}
 
-	binded := query.BindQuery{}
-	utils.Successful(riq.GetContents(&binded), "Expected the bind response Stanza to be IQBind: %v")
-
-	new_jid, ok := JIDFromString(binded.JID)
+	bind, ok := response.Query.(*query.BindQuery)
 	if !ok {
-		utils.Logger.Fatalf("Could not parse the server binded JID %v", binded.JID)
+		utils.Logger.Fatalf("Expected the binded IQ response to contain <bind>, instead got: %T", response)
 	}
 
-	utils.Logger.Infof("Successfully binded as %v", new_jid.String())
-	*client.jid = new_jid
+	jid, ok := JIDFromString(bind.JID)
+	if !ok {
+		utils.Logger.Fatalf("Could not parse the server binded JID %v", bind.JID)
+	}
 
+	utils.Logger.Infof("Successfully binded as %v", jid.String())
+	*client.jid = jid
 }
 
 func (client *Client) askRoster() {
 	// Build the request IQ
 	utils.Logger.Info("Attempting to bind")
 
-	request := stanzas.NewIQ(&stanzas.IQParams{
+	var request stanzas.Stanza = &stanzas.IQ{
 		ID:    stanzas.GenerateID(),
 		Type:  "get",
 		To:    client.jid.BaseJid(),
 		From:  client.jid.String(),
 		Query: &query.RosterQuery{},
-	})
+	}
 	client.sendStanza(request)
 
-	r := client.getStanza()
-
-	riq, ok := r.(*stanzas.IQ)
+	response, ok := client.getStanza().(*stanzas.IQ)
 	if !ok {
-		utils.Logger.Fatalf("Expected a IQ as a roster response, instead got: %T", r)
+		utils.Logger.Fatalf("Expected a IQ as a roster response, instead got: %T", response)
 	}
 
-	rbind := query.RosterQuery{}
-	utils.Successful(riq.GetContents(&rbind), "Expected the roster response Stanza to be RosterQuery: %v")
+	roster, ok := response.Query.(*query.RosterQuery)
+	if !ok {
+		utils.Logger.Fatalf("Expected the roster request response to contain to be of roster type, instead got: %T", roster)
+	}
 
-	fmt.Println(rbind.RosterItems)
+	fmt.Println(roster.RosterItems)
+}
+
+func (client *Client) DeleteAccount() error {
+	utils.Logger.Info("Attempting to delete account.")
+
+	id := stanzas.GenerateID()
+
+	var request stanzas.Stanza = &stanzas.IQ{
+		ID:    id,
+		Type:  "set",
+		Query: &query.UnregisterQuery{},
+	}
+	client.sendStanza(request)
+
+	response := client.getStanza()
+	iq, ok := response.(*stanzas.IQ)
+	if !ok || iq.ID != id {
+		utils.Logger.Fatalf("Expected a response IQ stanza, instead got: %T=%v", response, response)
+	}
+
+	if iq.Type != "result" {
+		utils.Logger.Infof("Could not delete account: %v", client.jid.BaseJid())
+		client.Close()
+		return fmt.Errorf("could not delete account")
+	}
+
+	utils.Logger.Infof("Succcessfully deleted %v account.", client.jid.BaseJid())
+	return nil
 }
 
 func (client *Client) sendStanza(s stanzas.Stanza) {
