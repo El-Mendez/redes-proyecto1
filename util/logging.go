@@ -1,29 +1,28 @@
 package utils
 
 import (
+	"encoding/json"
 	"go.uber.org/zap"
+	"io/ioutil"
 )
 
 var Logger *zap.SugaredLogger
 
 func InitializeLogger() {
-	log, err := zap.Config{
-		Level:            zap.NewAtomicLevelAt(zap.DebugLevel),
-		Development:      true,
-		Encoding:         "console",
-		EncoderConfig:    zap.NewDevelopmentEncoderConfig(),
-		OutputPaths:      []string{},
-		ErrorOutputPaths: []string{},
-	}.Build()
-
+	content, err := ioutil.ReadFile("log.json")
 	if err != nil {
-		panic("Logger cannot be initialized.")
+		panic("Could not read logging configuration.")
+	}
+
+	var cfg zap.Config
+	if err := json.Unmarshal(content, &cfg); err != nil {
+		panic("Logging configuration is not valid.")
+	}
+
+	log, err := cfg.Build()
+	if err != nil {
+		panic(err)
 	} else {
 		Logger = log.Sugar()
 	}
-	//if log, err := zap.NewDevelopment(); err != nil {
-	//	panic("Logger cannot be initialized.")
-	//} else {
-	//	Logger = log.Sugar()
-	//}
 }

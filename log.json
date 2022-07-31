@@ -1,0 +1,19 @@
+{
+  "level": "debug",
+  "development": true,
+  "encoding": "console",
+  "outputPaths": ["./logs/logs.log"],
+  "errorOutputPaths": ["./logs/errors.log"],
+  "encoderConfig": {
+    "levelKey": "L",
+    "nameKey": "N",
+    "callerKey": "C",
+    "messageKey": "M",
+    "stacktraceKey": "S",
+
+    "levelEncoder": "coloredCapital",
+    "timeEncoder": "ISO8601",
+    "durationEncoder": "string",
+    "callerEncoder": "short"
+  }
+}
