@@ -1,40 +1,51 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"github.com/el-mendez/redes-proyecto1/protocol"
-	"github.com/el-mendez/redes-proyecto1/protocol/stanzas"
-	"github.com/el-mendez/redes-proyecto1/util"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/el-mendez/redes-proyecto1/views"
+	"os"
 )
 
 func main() {
-	utils.InitializeLogger()
-	defer utils.Logger.Sync()
-
-	var account, password string
-
-	flag.StringVar(&account, "account", "", "The JID account to log in with")
-	flag.StringVar(&password, "password", "", "The matching password for the account")
-	flag.Parse()
-
-	jid, ok := protocol.JIDFromString(account)
-	if !ok {
-		utils.Logger.Fatal("You entered an invalid account.")
-	}
-
-	client, err := protocol.LogIn(&jid, password)
-	if client != nil {
-		defer client.Close()
-	}
+	err := tea.NewProgram(initialModel(), tea.WithAltScreen()).Start()
 	if err != nil {
-		fmt.Printf("Could not log in: %v", err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+type Model struct {
+	logged   bool
+	mainMenu *views.MainMenu
+}
+
+func (m *Model) Init() tea.Cmd {
+	return nil
+}
+
+func initialModel() *Model {
+	return &Model{
+		mainMenu: views.InitialMainMenu(),
+	}
+}
+
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if msg, ok := msg.(tea.KeyMsg); ok && msg.Type == tea.KeyCtrlC {
+		return m, tea.Quit
 	}
 
-	client.Send <- &stanzas.Message{
-		Type: "chat",
-		To:   "mendez@alumchat.fun",
-		From: client.FullJid(),
-		Body: "Hola desde channels!",
+	if !m.logged {
+		var cmd tea.Cmd
+		_, cmd = m.mainMenu.Update(msg)
+		return m, cmd
 	}
+	return m, nil
+}
+
+func (m *Model) View() string {
+	if !m.logged {
+		return m.mainMenu.View()
+	}
+	return ""
 }
