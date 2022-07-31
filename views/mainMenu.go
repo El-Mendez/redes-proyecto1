@@ -160,10 +160,6 @@ func (m *MainMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *MainMenu) View() string {
-
-	if result.err != nil && result.client != nil {
-		result.client.Close()
-	}
 	if m.logging || m.signing {
 		if m.username == nil {
 			return fmt.Sprintf("Ingresa una cuenta: \n%s \n\n%s \n\n", m.textArea.View(), m.err)
