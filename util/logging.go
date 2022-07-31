@@ -8,8 +8,8 @@ import (
 
 var Logger *zap.SugaredLogger
 
-func InitializeLogger() {
-	content, err := ioutil.ReadFile("log.json")
+func InitializeLogger(configFile string) {
+	content, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		panic("Could not read logging configuration.")
 	}
@@ -24,5 +24,6 @@ func InitializeLogger() {
 		panic(err)
 	} else {
 		Logger = log.Sugar()
+		Logger.Info("Program Started =============")
 	}
 }

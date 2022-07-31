@@ -54,14 +54,14 @@ func (m *MainMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.username = nil
 		m.password = ""
 
-		if result.err != nil && result.client != nil {
-			result.client.Close()
+		if result.Err != nil && result.Client != nil {
+			result.Client.Close()
 		}
 
-		if result.err != nil && m.logging {
-			m.err = m.errorStyle.Render(fmt.Sprintf("Could not Log In: %v", result.err))
-		} else if result.err != nil && m.signing {
-			m.err = m.errorStyle.Render(fmt.Sprintf("Could not Sign Up: %v", result.err))
+		if result.Err != nil && m.logging {
+			m.err = m.errorStyle.Render(fmt.Sprintf("Could not Log In: %v", result.Err))
+		} else if result.Err != nil && m.signing {
+			m.err = m.errorStyle.Render(fmt.Sprintf("Could not Sign Up: %v", result.Err))
 		} else {
 			panic("TODO")
 		}
@@ -181,8 +181,8 @@ func (m *MainMenu) View() string {
 }
 
 type LoginResult struct {
-	client *protocol.Client
-	err    error
+	Client *protocol.Client
+	Err    error
 }
 
 func (m *MainMenu) signup(jid protocol.JID, password string) tea.Cmd {
