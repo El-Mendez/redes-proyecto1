@@ -142,10 +142,10 @@ func (m *MainMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				if m.signing {
 					// Sing in
-					return m, tea.Batch(m.spin.Tick, m.signup())
+					return m, tea.Batch(m.spin.Tick, m.signup(*m.username, m.password))
 				} else {
 					// Log in
-					return m, tea.Batch(m.spin.Tick, m.login())
+					return m, tea.Batch(m.spin.Tick, m.login(*m.username, m.password))
 				}
 			}
 		}
@@ -185,16 +185,18 @@ type LoginResult struct {
 	err    error
 }
 
-func (m *MainMenu) signup() tea.Cmd {
+func (m *MainMenu) signup(jid protocol.JID, password string) tea.Cmd {
 	return func() tea.Msg {
 		time.Sleep(2 * time.Second)
-		return LoginResult{nil, fmt.Errorf("unimplemented")}
+		c, err := protocol.SignUp(&jid, password)
+		return LoginResult{c, err}
 	}
 }
 
-func (m *MainMenu) login() tea.Cmd {
+func (m *MainMenu) login(jid protocol.JID, password string) tea.Cmd {
 	return func() tea.Msg {
 		time.Sleep(2 * time.Second)
-		return LoginResult{nil, fmt.Errorf("unimplemented")}
+		c, err := protocol.LogIn(&jid, password)
+		return LoginResult{c, err}
 	}
 }

@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
+	utils "github.com/el-mendez/redes-proyecto1/util"
 	"github.com/el-mendez/redes-proyecto1/views"
 	"os"
 )
 
 func main() {
+	utils.InitializeLogger()
 	err := tea.NewProgram(initialModel(), tea.WithAltScreen()).Start()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
