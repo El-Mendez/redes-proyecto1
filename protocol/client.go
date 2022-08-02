@@ -265,6 +265,11 @@ func (client *Client) getStanza() (stanzas.Stanza, error) {
 		message := &stanzas.Message{}
 		utils.Successful(xml.Unmarshal(stanza, message), "Could not unparse message: %v")
 		return message, nil
+	case "presence":
+		utils.Logger.Info("Received a presence")
+		presence := &stanzas.Presence{}
+		utils.Successful(xml.Unmarshal(stanza, presence), "Could not unparse presence: %v")
+		return presence, nil
 	default:
 		utils.Logger.Errorf("Expected a iq/message tag, instead got: %v", tag.Name)
 	}

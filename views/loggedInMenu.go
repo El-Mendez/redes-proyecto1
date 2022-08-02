@@ -23,7 +23,20 @@ const (
 var loggedInOptions = []string{"Show all contacts", "Add a contact", "See a user details", "Send a message",
 	"Send a message (group)", "Set a presence", "Send a file", "Log Out", "Delete Account"}
 
-func handleIncoming(client *protocol.Client, p *tea.Program) {
+func handleIncoming(client *protocol.Client, p *tea.Program, m *LoggedInMenu) {
+	client.Send <- &stanzas.Presence{}
+	for stanza := range client.Receive {
+		switch stanza := stanza.(type) {
+		case *stanzas.Message:
+			if stanza.From != "" && stanza.Body != "" {
+				p.Send(notification{
+					text: m.senderStyle.Render(stanza.From) +
+						m.typeStyle.Render(" to you") +
+						": " + stanza.Body,
+				})
+			}
+		}
+	}
 }
 
 type LoggedInMenu struct {
@@ -52,7 +65,7 @@ func (m *LoggedInMenu) Start(client *protocol.Client, p *tea.Program) {
 	m.client = client
 	m.p = p
 
-	go handleIncoming(client, p)
+	go handleIncoming(client, p, m)
 }
 
 func InitialLoggedInMenu() *LoggedInMenu {
@@ -127,6 +140,7 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case messaging:
 				if m.username == "" {
+					tea.Println("PRESIONARON ENTER")
 					name := m.usernameInput.Value()
 					if _, ok := protocol.JIDFromString(name); ok {
 						m.username = name
@@ -198,5 +212,5 @@ func (m *LoggedInMenu) View() string {
 			utils.MenuOption(loggedInOptions[8], 8 == m.selected, m.selectedStyle),
 		)
 	}
-	return "An error ocurred"
+	return "An error occurred"
 }
