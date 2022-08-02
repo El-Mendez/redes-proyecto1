@@ -1,4 +1,4 @@
-package views
+package mainMenu
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	"github.com/el-mendez/redes-proyecto1/protocol"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 	"strings"
-	"time"
 )
 
 var mainOptions = []string{"Login", "Create Account", "Quit"}
@@ -32,6 +31,14 @@ type MainMenu struct {
 
 func (m *MainMenu) Init() tea.Cmd {
 	return textinput.Blink
+}
+
+func (m *MainMenu) Start() {
+	m.selected = 0
+	m.logging = false
+	m.signing = false
+	m.loading = false
+	m.username = nil
 }
 
 func InitialMainMenu() *MainMenu {
@@ -165,7 +172,7 @@ func (m *MainMenu) View() string {
 			return fmt.Sprintf("Ingresa una cuenta: \n%s \n\n%s \n\n", m.textArea.View(), m.err)
 		} else {
 			if m.loading {
-				return fmt.Sprintf("Ingresa una cuenta: %s \n\n%s Loading, please wait... \n\n", m.username.BaseJid(), m.spin.View())
+				return fmt.Sprintf("Ingresa una cuenta: %s \nIngresa tu contraseña: \n%s Loading, please wait... \n\n", m.username.BaseJid(), m.spin.View())
 			} else {
 				return fmt.Sprintf("Ingresa una cuenta: %s \nIngresa tu contraseña: \n%s \n\n%s \n\n", m.username.BaseJid(), m.textArea.View(), m.err)
 			}
@@ -178,25 +185,4 @@ func (m *MainMenu) View() string {
 		utils.MenuOption(mainOptions[2], 2 == m.selected, m.selectedStyle),
 		m.err,
 	)
-}
-
-type LoginResult struct {
-	Client *protocol.Client
-	Err    error
-}
-
-func (m *MainMenu) signup(jid protocol.JID, password string) tea.Cmd {
-	return func() tea.Msg {
-		time.Sleep(2 * time.Second)
-		c, err := protocol.SignUp(&jid, password)
-		return LoginResult{c, err}
-	}
-}
-
-func (m *MainMenu) login(jid protocol.JID, password string) tea.Cmd {
-	return func() tea.Msg {
-		time.Sleep(2 * time.Second)
-		c, err := protocol.LogIn(&jid, password)
-		return LoginResult{c, err}
-	}
 }

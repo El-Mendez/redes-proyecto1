@@ -1,4 +1,4 @@
-package views
+package loggedInMenu
 
 import (
 	"fmt"
@@ -16,8 +16,10 @@ import (
 type loggedInAction int
 
 const (
-	menu      loggedInAction = iota
-	messaging loggedInAction = iota
+	menu loggedInAction = iota
+	messaging
+	loggingOut
+	closeAccount
 )
 
 var loggedInOptions = []string{"Show all contacts", "Add a contact", "See a user details", "Send a message",
@@ -62,6 +64,7 @@ type LoggedInMenu struct {
 }
 
 func (m *LoggedInMenu) Start(client *protocol.Client, p *tea.Program) {
+	m.state = menu
 	m.client = client
 	m.p = p
 
@@ -98,28 +101,6 @@ func (m *LoggedInMenu) Init() tea.Cmd {
 	return nil
 }
 
-type notification struct {
-	text string
-}
-
-func (m *LoggedInMenu) sendMessage(client *protocol.Client, to string, content string) tea.Cmd {
-	return func() tea.Msg {
-		client.Send <- &stanzas.Message{
-			Type: "chat",
-			To:   to,
-			From: client.FullJid(),
-			Body: content,
-		}
-
-		return notification{
-			text: m.senderStyle.Render("You to ") +
-				m.typeStyle.Render(to) +
-				": " +
-				content,
-		}
-	}
-}
-
 func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case notification:
@@ -137,6 +118,16 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.state = messaging
 					m.usernameInput.Focus()
 					return m, nil
+				case 7:
+					m.state = loggingOut
+					client := m.client
+					m.client = nil
+					return m, m.logOut(client)
+				case 8:
+					m.state = loggingOut
+					client := m.client
+					m.client = nil
+					return m, m.deleteAccount(client)
 				}
 			case messaging:
 				if m.username == "" {
