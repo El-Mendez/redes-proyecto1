@@ -58,7 +58,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		_, cmd = m.mainMenu.Update(msg)
 		return m, cmd
 	}
-	return m, nil
 }
 
 func (m *Model) View() string {

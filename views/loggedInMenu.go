@@ -3,10 +3,18 @@ package views
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/el-mendez/redes-proyecto1/protocol"
+	"time"
 )
 
 var loggedInOptions = []string{"Show all contacts", "Add a contact", "See a user details", "Send a message",
 	"Send a message (group)", "Set a presence", "Send a file", "Log Out", "Delete Account"}
+
+func handleIncoming(client *protocol.Client, p *tea.Program) {
+	time.Sleep(30 * time.Second)
+	p.Send(testMsg{})
+}
+
+type testMsg struct{}
 
 type LoggedInMenu struct {
 	p      *tea.Program
@@ -16,6 +24,7 @@ type LoggedInMenu struct {
 func (m *LoggedInMenu) Start(client *protocol.Client, p *tea.Program) {
 	m.client = client
 	m.p = p
+	//go handleIncoming(client, p)
 }
 
 func InitialLoggedInMenu() *LoggedInMenu {
