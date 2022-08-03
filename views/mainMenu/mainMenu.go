@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-var mainOptions = []string{"Login", "Create Account", "Quit"}
+var mainOptions = [3]string{"Login", "Create Account", "Quit"}
 
 type MainMenu struct {
 	selectedStyle lipgloss.Style
@@ -39,6 +39,7 @@ func (m *MainMenu) Start() {
 	m.signing = false
 	m.loading = false
 	m.username = nil
+	m.err = ""
 }
 
 func InitialMainMenu() *MainMenu {

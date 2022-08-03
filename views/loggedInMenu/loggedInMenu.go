@@ -19,10 +19,10 @@ const (
 	menu loggedInAction = iota
 	messaging
 	loggingOut
-	closeAccount
+	addingContact
 )
 
-var loggedInOptions = []string{"Show all contacts", "Add a contact", "See a user details", "Send a message",
+var loggedInOptions = [9]string{"Show all contacts", "Add a contact", "See a user details", "Send a message",
 	"Send a message (group)", "Set a presence", "Send a file", "Log Out", "Delete Account"}
 
 func handleIncoming(client *protocol.Client, p *tea.Program, m *LoggedInMenu) {
@@ -36,6 +36,15 @@ func handleIncoming(client *protocol.Client, p *tea.Program, m *LoggedInMenu) {
 						m.typeStyle.Render(" to you") +
 						": " + stanza.Body,
 				})
+			}
+		case *stanzas.Presence:
+			switch stanza.Type {
+			case "subscribed":
+				p.Send(notification{m.alertStyle.Render(stanza.From + " accepted your friend request!")})
+			case "unsubscribed":
+				p.Send(notification{m.alertStyle.Render(stanza.From + " has stopped being friend.")})
+			case "subscribe":
+				p.Send(friendRequest{stanza.From})
 			}
 		}
 	}
@@ -57,6 +66,9 @@ type LoggedInMenu struct {
 	username      string
 	usernameInput textinput.Model
 
+	incomingFriend  string
+	acceptingFriend bool
+
 	contentInput textarea.Model
 
 	messages []string
@@ -67,6 +79,8 @@ func (m *LoggedInMenu) Start(client *protocol.Client, p *tea.Program) {
 	m.state = menu
 	m.client = client
 	m.p = p
+	m.incomingFriend = ""
+	m.messages = make([]string, 0)
 
 	go handleIncoming(client, p, m)
 }
@@ -103,6 +117,9 @@ func (m *LoggedInMenu) Init() tea.Cmd {
 
 func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case friendRequest:
+		m.incomingFriend = msg.from
+		return m, nil
 	case notification:
 		m.messages = append(m.messages, msg.text)
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
@@ -111,9 +128,24 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
+			if m.incomingFriend != "" {
+				var cmd tea.Cmd
+				if m.acceptingFriend {
+					cmd = m.confirmFriendship(m.incomingFriend)
+				} else {
+					cmd = m.denyFriendship(m.incomingFriend)
+				}
+				m.incomingFriend = ""
+				return m, cmd
+			}
+
 			switch m.state {
 			case menu:
 				switch m.selected {
+				case 1:
+					m.state = addingContact
+					m.usernameInput.Focus()
+					return m, nil
 				case 3:
 					m.state = messaging
 					m.usernameInput.Focus()
@@ -131,7 +163,6 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case messaging:
 				if m.username == "" {
-					tea.Println("PRESIONARON ENTER")
 					name := m.usernameInput.Value()
 					if _, ok := protocol.JIDFromString(name); ok {
 						m.username = name
@@ -148,14 +179,27 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, m.sendMessage(m.client, m.username, content)
 					}
 				}
+			case addingContact:
+				name := m.usernameInput.Value()
+				if _, ok := protocol.JIDFromString(name); ok {
+					m.username = name
+					m.usernameInput.Blur()
+					m.usernameInput.Reset()
+					m.state = menu
+					return m, m.addContact(name)
+				}
 			}
 		case tea.KeyDown:
-			if m.state == menu {
+			if m.incomingFriend != "" {
+				m.acceptingFriend = !m.acceptingFriend
+			} else if m.state == menu {
 				m.selected = utils.EuclideanModule(m.selected+1, len(loggedInOptions))
 				return m, nil
 			}
 		case tea.KeyUp:
-			if m.state == menu {
+			if m.incomingFriend != "" {
+				m.acceptingFriend = !m.acceptingFriend
+			} else if m.state == menu {
 				m.selected = utils.EuclideanModule(m.selected-1, len(loggedInOptions))
 				return m, nil
 			}
@@ -180,6 +224,15 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *LoggedInMenu) View() string {
+	if m.incomingFriend != "" {
+		if m.acceptingFriend {
+			return "You have a friend request from " + m.senderStyle.Render(m.incomingFriend) +
+				"\nDo you want to accept it? \n\n" + m.selectedStyle.Render("[X] Yes") + "\n[ ] No \n\n"
+		}
+		return "You have a friend request from " + m.senderStyle.Render(m.incomingFriend) +
+			"\nDo you want to accept it? \n\n[ ] Yes \n" + m.selectedStyle.Render("[X] No\n\n")
+	}
+
 	switch m.state {
 	case messaging:
 		if m.username == "" {
@@ -189,6 +242,9 @@ func (m *LoggedInMenu) View() string {
 			return fmt.Sprintf("%s\n\n%v \n\n (presiona Ctrl+Q para volver)",
 				m.viewport.View(), m.contentInput.View())
 		}
+	case addingContact:
+		return fmt.Sprintf("%s\nIngresa el usuario del usuario que quieres agregar\n%v \n\n (presiona Ctrl+Q para volver)",
+			m.viewport.View(), m.usernameInput.View())
 	case menu:
 		return fmt.Sprintf("%s \n\n%s \n%s \n%s \n%s \n%s \n%s \n%s \n%s \n%s", m.viewport.View(),
 			// Sé que podría hacer un loop, pero me rehúso xd
@@ -203,5 +259,5 @@ func (m *LoggedInMenu) View() string {
 			utils.MenuOption(loggedInOptions[8], 8 == m.selected, m.selectedStyle),
 		)
 	}
-	return "An error occurred"
+	return "Loading..."
 }

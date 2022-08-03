@@ -40,3 +40,24 @@ func (m *LoggedInMenu) deleteAccount(client *protocol.Client) tea.Cmd {
 		return LogOutResult{}
 	}
 }
+
+func (m *LoggedInMenu) addContact(to string) tea.Cmd {
+	return func() tea.Msg {
+		m.client.Send <- &stanzas.Presence{To: to, Type: "subscribe"}
+		return notification{m.alertStyle.Render("You sent a friendship request to " + to)}
+	}
+}
+
+func (m *LoggedInMenu) confirmFriendship(with string) tea.Cmd {
+	return func() tea.Msg {
+		m.client.Send <- &stanzas.Presence{To: with, Type: "subscribed"}
+		return notification{m.alertStyle.Render("You are now friends with " + with)}
+	}
+}
+
+func (m *LoggedInMenu) denyFriendship(with string) tea.Cmd {
+	return func() tea.Msg {
+		m.client.Send <- &stanzas.Presence{To: with, Type: "unsubscribed"}
+		return notification{m.alertStyle.Render("You are not friends with " + with)}
+	}
+}

@@ -5,3 +5,7 @@ type notification struct {
 }
 
 type LogOutResult struct{}
+
+type friendRequest struct {
+	from string
+}
