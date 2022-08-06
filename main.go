@@ -5,6 +5,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 	"github.com/el-mendez/redes-proyecto1/views"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu"
 	"github.com/el-mendez/redes-proyecto1/views/mainMenu"
 	"os"
 )
@@ -25,7 +26,8 @@ func main() {
 }
 
 type Model struct {
-	mainMenu *mainMenu.MainMenu
+	mainMenu     *mainMenu.MainMenu
+	loggedInMenu *loggedInMenu.LoggedInMenu
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -34,21 +36,48 @@ func (m *Model) Init() tea.Cmd {
 
 func initialModel() *Model {
 	return &Model{
-		mainMenu: mainMenu.New(),
+		mainMenu:     mainMenu.New(),
+		loggedInMenu: loggedInMenu.New(),
 	}
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	// The user logs in
 	if msg, ok := msg.(views.LoggedInMsg); ok {
-		msg.Client.Close()
-		return m, tea.Quit
+		views.State.Client = msg.Client
+		// TODO this
+		go func() {
+			for range msg.Client.Receive {
+			}
+		}()
+		m.mainMenu.Blur()
+		m.loggedInMenu.Focus()
+		return m, nil
 	}
 
-	var cmd tea.Cmd
-	_, cmd = m.mainMenu.Update(msg)
+	// The user logs out
+	if _, ok := msg.(views.LoggedOutMsg); ok {
+		views.State.Client = nil
+		m.loggedInMenu.Blur()
+		m.mainMenu.Focus()
+		return m, nil
+	}
+
+	if views.State.Client == nil {
+		_, cmd = m.mainMenu.Update(msg)
+	} else {
+		_, cmd = m.loggedInMenu.Update(msg)
+	}
+
 	return m, cmd
 }
 
 func (m *Model) View() string {
-	return m.mainMenu.View()
+	if views.State.Client == nil {
+		return m.mainMenu.View()
+	} else {
+		return m.loggedInMenu.View()
+	}
 }

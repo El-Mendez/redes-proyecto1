@@ -7,9 +7,12 @@ type LoggedInMsg struct {
 }
 
 type LoggedOutMsg struct {
-	Client *protocol.Client
 }
 
 type ErrorMsg struct {
 	Err string
+}
+
+type Notification struct {
+	Msg string
 }

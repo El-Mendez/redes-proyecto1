@@ -28,6 +28,7 @@ func (m *MainMenu) Init() tea.Cmd {
 
 func (m *MainMenu) Focus() {
 	m.inMenu = true
+	m.selected = 0
 }
 
 func (m *MainMenu) Blur() {
