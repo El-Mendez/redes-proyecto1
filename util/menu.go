@@ -12,7 +12,8 @@ func ViewMenu(title string, counter int, options *[]string, selectedStyle *lipgl
 
 	for i, option := range *options {
 		if i == counter {
-			fmt.Fprintf(&builder, selectedStyle.Render("[✓] %s \n\n"), option)
+			fmt.Fprintf(&builder, selectedStyle.Render("[✓] %s"), option)
+			fmt.Fprintf(&builder, "\n")
 		} else {
 			fmt.Fprintf(&builder, "[ ] %s \n", option)
 		}

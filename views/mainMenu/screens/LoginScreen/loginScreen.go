@@ -80,7 +80,8 @@ func (s *logInScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			password := s.passwordInput.Value()
 
 			s.passwordInput.Blur()
-			return s, logIn(username, password)
+			s.loading = true
+			return s, tea.Batch(logIn(username, password), s.spin.Tick)
 		}
 
 		return s, nil
@@ -92,7 +93,7 @@ func (s *logInScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *logInScreen) View() string {
 	if s.loading {
-		return fmt.Sprintf("Enter your account: %s\nEnter your password: %s\n\n%s",
+		return fmt.Sprintf("Enter your account: %s\nEnter your password: %s\n\n%s Loading...",
 			s.usernameInput.View(), s.passwordInput.View(), s.spin.View())
 	}
 

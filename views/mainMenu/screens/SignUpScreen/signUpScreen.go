@@ -80,7 +80,8 @@ func (s *signUpScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			password := s.passwordInput.Value()
 
 			s.passwordInput.Blur()
-			return s, signUp(username, password)
+			s.loading = true
+			return s, tea.Batch(signUp(username, password), s.spin.Tick)
 		}
 
 		return s, nil
@@ -92,7 +93,7 @@ func (s *signUpScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *signUpScreen) View() string {
 	if s.loading {
-		return fmt.Sprintf("Enter your new account name: %s\nEnter your new password: %s\n\n%s",
+		return fmt.Sprintf("Enter your new account name: %s\nEnter your new password: %s\n\n%s Loading...",
 			s.usernameInput.View(), s.passwordInput.View(), s.spin.View())
 	}
 

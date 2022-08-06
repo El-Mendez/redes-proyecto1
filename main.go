@@ -5,16 +5,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 	"github.com/el-mendez/redes-proyecto1/views"
-	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu"
 	"github.com/el-mendez/redes-proyecto1/views/mainMenu"
 	"os"
 )
 
-var program *tea.Program
-
 func main() {
 	utils.InitializeLogger("./log.conf.json")
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+
+	m := initialModel()
+	m.mainMenu.Focus()
+
+	p := tea.NewProgram(m, tea.WithAltScreen())
 	views.State.P = p
 
 	if err := p.Start(); err != nil {
@@ -24,8 +25,7 @@ func main() {
 }
 
 type Model struct {
-	mainMenu     *mainMenu.MainMenu
-	loggedInMenu *loggedInMenu.LoggedInMenu
+	mainMenu *mainMenu.MainMenu
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -34,31 +34,14 @@ func (m *Model) Init() tea.Cmd {
 
 func initialModel() *Model {
 	return &Model{
-		mainMenu:     mainMenu.New(),
-		loggedInMenu: loggedInMenu.InitialLoggedInMenu(),
+		mainMenu: mainMenu.New(),
 	}
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok && msg.Type == tea.KeyCtrlC {
+	if msg, ok := msg.(views.LoggedInMsg); ok {
+		msg.Client.Close()
 		return m, tea.Quit
-	}
-
-	if msg, ok := msg.(mainMenu.LoginResult); ok && msg.Err == nil {
-		m.loggedInMenu.Start(msg.Client, program)
-		return m, nil
-	}
-
-	if _, ok := msg.(loggedInMenu.LogOutResult); ok {
-		views.State.Client = nil
-		m.mainMenu.Focus()
-		return m, nil
-	}
-
-	if views.State.Client != nil {
-		var cmd tea.Cmd
-		_, cmd = m.loggedInMenu.Update(msg)
-		return m, cmd
 	}
 
 	var cmd tea.Cmd
@@ -67,8 +50,5 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	if views.State.Client != nil {
-		return m.loggedInMenu.View()
-	}
 	return m.mainMenu.View()
 }

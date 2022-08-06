@@ -9,7 +9,7 @@ import (
 	"github.com/el-mendez/redes-proyecto1/views/mainMenu/screens/SignUpScreen"
 )
 
-var mainOptions = []string{"LoginScreen", "Create Account", "Quit"}
+var mainOptions = []string{"Login", "Create Account", "Quit"}
 var screens = [2]views.Screen{
 	LoginScreen.New(),
 	SignUpScreen.New(),
@@ -19,13 +19,16 @@ type MainMenu struct {
 	inMenu        bool
 	selected      int
 	selectedStyle lipgloss.Style
+	err           string
 }
 
 func (m *MainMenu) Init() tea.Cmd {
 	return nil
 }
 
-func (m *MainMenu) Focus() {}
+func (m *MainMenu) Focus() {
+	m.inMenu = true
+}
 
 func (m *MainMenu) Blur() {
 	if !m.inMenu && m.selected < len(screens) {
@@ -53,20 +56,17 @@ func (m *MainMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if _, ok := msg.(LoginScreen.LoggedInMsg); ok {
+	if msg, ok := msg.(views.ErrorMsg); ok {
 		m.inMenu = true
 		screens[m.selected].Blur()
-		return m, nil
-	}
-	if _, ok := msg.(SignUpScreen.SignedUpMsg); ok {
-		m.inMenu = true
-		screens[m.selected].Blur()
+		m.err = msg.Err
 		return m, nil
 	}
 
 	if m.inMenu {
 		// Enter an option menu
 		if msg, ok := msg.(tea.KeyMsg); ok {
+			m.err = ""
 			switch msg.Type {
 			case tea.KeyEnter:
 				if m.selected == 2 { // if quitting
@@ -89,6 +89,10 @@ func (m *MainMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *MainMenu) View() string {
 	if m.inMenu {
+		if m.err != "" {
+			return utils.ViewMenu("Bienvenido al Chat de Méndez!", m.selected, &mainOptions, &m.selectedStyle, &m.err)
+		}
+
 		return utils.ViewMenu("Bienvenido al Chat de Méndez!", m.selected, &mainOptions, &m.selectedStyle, nil)
 	}
 
