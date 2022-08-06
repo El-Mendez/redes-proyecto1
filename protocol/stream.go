@@ -59,14 +59,14 @@ func MakeStream(domain string) *Stream {
 
 	stream := &Stream{conn, xml.NewDecoder(conn)}
 
-	// Start the server communication
+	// Focus the server communication
 	if err := stream.Write([]byte(xml.Header)); err != nil {
 		utils.Logger.Warnf("Could not send xml header to server: %v", err)
 		_ = conn.Close()
 		return nil
 	}
 
-	// Start the stream with the xmpp server (the tags <stream:stream/>)
+	// Focus the stream with the xmpp server (the tags <stream:stream/>)
 	if err := stream.Restart(domain); err != nil {
 		utils.Logger.Errorf("Could not start stream at initiation: %v", err)
 		_ = conn.Close()
@@ -78,7 +78,7 @@ func MakeStream(domain string) *Stream {
 
 // Restart recreates a stream with the server when the server state resets.
 func (stream *Stream) Restart(domain string) error {
-	// Start the stream
+	// Focus the stream
 	if err := stream.Write([]byte("<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' " +
 		"to='" + domain + "' version='1.0'>")); err != nil {
 		utils.Logger.Errorf("Could not send stream opening tag: %v", err)

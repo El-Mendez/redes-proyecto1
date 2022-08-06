@@ -6,7 +6,7 @@ import (
 	"github.com/el-mendez/redes-proyecto1/protocol/stanzas"
 )
 
-func (m *LoggedInMenu) sendMessage(client *protocol.Client, to string, content string) tea.Cmd {
+func (*LoggedInMenu) sendMessage(client *protocol.Client, to string, content string) tea.Cmd {
 	return func() tea.Msg {
 		client.Send <- &stanzas.Message{
 			Type: "chat",

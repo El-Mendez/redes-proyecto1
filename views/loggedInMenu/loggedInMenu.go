@@ -17,12 +17,13 @@ type loggedInAction int
 
 const (
 	menu loggedInAction = iota
+	joiningGroup
 	messaging
 	loggingOut
 	addingContact
 )
 
-var loggedInOptions = [9]string{"Show all contacts", "Add a contact", "See a user details", "Send a message",
+var loggedInOptions = [10]string{"Show all contacts", "Add a contact", "See a user details", "Join a Group", "Send a message",
 	"Send a message (group)", "Set a presence", "Send a file", "Log Out", "Delete Account"}
 
 func handleIncoming(client *protocol.Client, p *tea.Program, m *LoggedInMenu) {
@@ -31,11 +32,20 @@ func handleIncoming(client *protocol.Client, p *tea.Program, m *LoggedInMenu) {
 		switch stanza := stanza.(type) {
 		case *stanzas.Message:
 			if stanza.From != "" && stanza.Body != "" {
-				p.Send(notification{
-					text: m.senderStyle.Render(stanza.From) +
-						m.typeStyle.Render(" to you") +
-						": " + stanza.Body,
-				})
+				if stanza.Type == "groupchat" {
+					jid, _ := protocol.JIDFromString(stanza.From)
+					p.Send(notification{
+						text: m.senderStyle.Render(jid.DeviceName) +
+							m.typeStyle.Render(" to "+jid.Username) +
+							": " + stanza.Body,
+					})
+				} else {
+					p.Send(notification{
+						text: m.senderStyle.Render(stanza.From) +
+							m.typeStyle.Render(" to you") +
+							": " + stanza.Body,
+					})
+				}
 			}
 		case *stanzas.Presence:
 			switch stanza.Type {
@@ -51,17 +61,10 @@ func handleIncoming(client *protocol.Client, p *tea.Program, m *LoggedInMenu) {
 }
 
 type LoggedInMenu struct {
-	p      *tea.Program
-	client *protocol.Client
-
 	state loggedInAction
 
 	selected      int
 	selectedStyle lipgloss.Style
-
-	alertStyle  lipgloss.Style
-	typeStyle   lipgloss.Style
-	senderStyle lipgloss.Style
 
 	username      string
 	usernameInput textinput.Model
@@ -96,15 +99,6 @@ func InitialLoggedInMenu() *LoggedInMenu {
 
 	return &LoggedInMenu{
 		selectedStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Bold(true),
-		alertStyle:    lipgloss.NewStyle().Faint(true),
-		senderStyle: lipgloss.NewStyle().
-			Background(lipgloss.Color("86")).
-			Foreground(lipgloss.Color("0")).
-			Bold(true),
-		typeStyle: lipgloss.NewStyle().
-			Background(lipgloss.Color("86")).
-			Foreground(lipgloss.Color("9")).
-			Bold(true),
 		viewport:      viewport.New(30, 10),
 		usernameInput: ti,
 		contentInput:  ta,
@@ -147,21 +141,25 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.usernameInput.Focus()
 					return m, nil
 				case 3:
+					m.state = joiningGroup
+					m.usernameInput.Focus()
+					return m, nil
+				case 4:
 					m.state = messaging
 					m.usernameInput.Focus()
 					return m, nil
-				case 7:
+				case 8:
 					m.state = loggingOut
 					client := m.client
 					m.client = nil
 					return m, m.logOut(client)
-				case 8:
+				case 9:
 					m.state = loggingOut
 					client := m.client
 					m.client = nil
 					return m, m.deleteAccount(client)
 				}
-			case messaging:
+			case messaging, joiningGroup:
 				if m.username == "" {
 					name := m.usernameInput.Value()
 					if _, ok := protocol.JIDFromString(name); ok {
@@ -246,7 +244,7 @@ func (m *LoggedInMenu) View() string {
 		return fmt.Sprintf("%s\nIngresa el usuario del usuario que quieres agregar\n%v \n\n (presiona Ctrl+Q para volver)",
 			m.viewport.View(), m.usernameInput.View())
 	case menu:
-		return fmt.Sprintf("%s \n\n%s \n%s \n%s \n%s \n%s \n%s \n%s \n%s \n%s", m.viewport.View(),
+		return fmt.Sprintf("%s \n\n%s \n%s \n%s \n%s \n%s \n%s \n%s \n%s \n%s \n%s", m.viewport.View(),
 			// Sé que podría hacer un loop, pero me rehúso xd
 			utils.MenuOption(loggedInOptions[0], 0 == m.selected, m.selectedStyle),
 			utils.MenuOption(loggedInOptions[1], 1 == m.selected, m.selectedStyle),
@@ -257,6 +255,7 @@ func (m *LoggedInMenu) View() string {
 			utils.MenuOption(loggedInOptions[6], 6 == m.selected, m.selectedStyle),
 			utils.MenuOption(loggedInOptions[7], 7 == m.selected, m.selectedStyle),
 			utils.MenuOption(loggedInOptions[8], 8 == m.selected, m.selectedStyle),
+			utils.MenuOption(loggedInOptions[9], 9 == m.selected, m.selectedStyle),
 		)
 	}
 	return "Loading..."

@@ -114,7 +114,7 @@ func (client *Client) authorize(password string) error {
 		utils.Logger.Errorf("Could not send login request")
 		return err
 	}
-	utils.Logger.Debug("Sent Login request")
+	utils.Logger.Debug("Sent LoginScreen request")
 
 	// Check for response
 	tag, _, err := client.stream.NextElement()
