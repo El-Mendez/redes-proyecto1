@@ -26,6 +26,10 @@ func (client *Client) FullJid() string {
 	return client.jid.String()
 }
 
+func (client *Client) BaseJid() string {
+	return client.jid.BaseJid()
+}
+
 func SignUp(jid *JID, password string) (*Client, error) {
 	utils.Logger.Info("Attempting to create channel and signup.")
 
@@ -195,17 +199,7 @@ func (client *Client) bind() {
 }
 
 func (client *Client) askRoster() {
-	// Build the request IQ
-	utils.Logger.Info("Attempting to bind")
 
-	var request stanzas.Stanza = &stanzas.IQ{
-		ID:    stanzas.GenerateID(),
-		Type:  "get",
-		To:    client.jid.BaseJid(),
-		From:  client.jid.String(),
-		Query: &query.RosterQuery{},
-	}
-	client.Send <- request
 }
 
 func (client *Client) DeleteAccount() error {

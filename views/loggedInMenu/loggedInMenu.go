@@ -8,6 +8,7 @@ import (
 	"github.com/el-mendez/redes-proyecto1/views"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/gotFriendRequest"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/joinGroupScreen"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/seeFriendsScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendFriendRequestScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendGroupMessageScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendMessageScreen"
@@ -25,6 +26,8 @@ var screens = [8]views.Screen{
 	sendFriendRequestScreen.New(),
 	joinGroupScreen.New(),
 	setStatusScreen.New(),
+	setStatusScreen.New(), // TODO replace with sending a file
+	seeFriendsScreen.New(),
 }
 
 type LoggedInMenu struct {

@@ -51,6 +51,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// The user logs in
 	if msg, ok := msg.(views.LoggedInMsg); ok {
 		views.State.Client = msg.Client
+
+		views.State.FriendsMutex.Lock()
+		views.State.Friends = make(map[string]map[string]*views.Device)
+		views.State.FriendsMutex.Unlock()
+
 		go views.HandleIncoming(msg.Client)
 		m.mainMenu.Blur()
 		m.loggedInMenu.Focus()

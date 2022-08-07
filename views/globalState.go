@@ -4,11 +4,20 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/el-mendez/redes-proyecto1/protocol"
+	"sync"
 )
 
+type Device struct {
+	Show   string
+	Status []string
+}
+
 type GlobalState struct {
-	P      *tea.Program
-	Client *protocol.Client
+	P            *tea.Program
+	Client       *protocol.Client
+	FriendsMutex sync.Mutex
+	//			friend		devices
+	Friends map[string]map[string]*Device
 
 	// like the alerts when a user logins
 	AlertStyle lipgloss.Style
