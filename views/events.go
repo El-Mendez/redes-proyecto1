@@ -16,3 +16,7 @@ type ErrorMsg struct {
 type Notification struct {
 	Msg string
 }
+
+type FriendRequest struct {
+	From string
+}

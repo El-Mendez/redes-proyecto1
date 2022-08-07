@@ -6,18 +6,23 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 	"github.com/el-mendez/redes-proyecto1/views"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendMessageScreen"
+	"strings"
 )
 
 var options = []string{"Send a message", "Send a group message", "Send a friend request",
 	"Change your status", "Send a file", "Join a group chat", "Mostrar todos los contactos",
 	"Detalles de un contacto", "Delete Account", "Logout"}
-var screens = [8]views.Screen{}
+var screens = [8]views.Screen{
+	sendMessageScreen.New(),
+}
 
 type LoggedInMenu struct {
 	inMenu        bool
 	selected      int
 	selectedStyle lipgloss.Style
 	vp            viewport.Model
+	content       *strings.Builder
 }
 
 func (m *LoggedInMenu) Init() tea.Cmd {
@@ -31,6 +36,7 @@ func New() *LoggedInMenu {
 		selectedStyle: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("5")).
 			Bold(true),
+		content: &strings.Builder{},
 	}
 }
 
@@ -42,6 +48,7 @@ func (m *LoggedInMenu) Focus() {
 func (m *LoggedInMenu) Blur() {
 	m.inMenu = true
 	m.selected = 0
+	m.content.Reset()
 }
 
 func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -50,6 +57,14 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		screens[m.selected].Blur()
 		m.inMenu = true
 		return m, nil
+	}
+
+	// Enter an option menu
+	if msg, ok := msg.(views.Notification); ok {
+		m.content.WriteString("\n")
+		m.content.WriteString(msg.Msg)
+		m.vp.SetContent(m.content.String())
+		m.vp.GotoBottom()
 	}
 
 	if m.inMenu {

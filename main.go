@@ -44,14 +44,14 @@ func initialModel() *Model {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
+	if msg, ok := msg.(tea.KeyMsg); ok && msg.Type == tea.KeyCtrlC {
+		return m, tea.Quit
+	}
+
 	// The user logs in
 	if msg, ok := msg.(views.LoggedInMsg); ok {
 		views.State.Client = msg.Client
-		// TODO this
-		go func() {
-			for range msg.Client.Receive {
-			}
-		}()
+		go views.HandleIncoming(msg.Client)
 		m.mainMenu.Blur()
 		m.loggedInMenu.Focus()
 		return m, nil
