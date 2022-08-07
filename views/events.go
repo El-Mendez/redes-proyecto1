@@ -17,6 +17,10 @@ type Notification struct {
 	Msg string
 }
 
+type NotificationAndBack struct {
+	Msg string
+}
+
 type FriendRequest struct {
 	From string
 }

@@ -6,15 +6,20 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 	"github.com/el-mendez/redes-proyecto1/views"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/joinGroupScreen"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendGroupMessageScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendMessageScreen"
 	"strings"
 )
 
-var options = []string{"Send a message", "Send a group message", "Send a friend request",
-	"Change your status", "Send a file", "Join a group chat", "Mostrar todos los contactos",
+var options = []string{"Send a message", "Send a group message", "Send a friend request", "Join a group chat",
+	"Change your status", "Send a file", "Mostrar todos los contactos",
 	"Detalles de un contacto", "Delete Account", "Logout"}
 var screens = [8]views.Screen{
 	sendMessageScreen.New(),
+	sendGroupMessageScreen.New(),
+	joinGroupScreen.New(),
+	joinGroupScreen.New(),
 }
 
 type LoggedInMenu struct {
@@ -65,6 +70,16 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.content.WriteString(msg.Msg)
 		m.vp.SetContent(m.content.String())
 		m.vp.GotoBottom()
+	}
+	if msg, ok := msg.(views.NotificationAndBack); ok {
+		m.content.WriteString("\n")
+		m.content.WriteString(msg.Msg)
+		m.vp.SetContent(m.content.String())
+		m.vp.GotoBottom()
+		m.inMenu = true
+		if m.selected < len(options) {
+			screens[m.selected].Blur()
+		}
 	}
 
 	if m.inMenu {

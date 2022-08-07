@@ -26,11 +26,22 @@ func handleIncomingMessages(msg *stanzas.Message) {
 		return
 	}
 
-	State.P.Send(Notification{
-		Msg: State.SenderStyle.Render(msg.From) +
-			State.TypeStyle.Render(" to you") +
-			" " + msg.Body,
-	})
+	switch msg.Type {
+	case "groupchat":
+		from, _ := protocol.JIDFromString(msg.From)
+		State.P.Send(Notification{
+			Msg: State.SenderStyle.Render(from.DeviceName) +
+				State.TypeStyle.Render(" through "+from.BaseJid()) +
+				" " + msg.Body,
+		})
+	default:
+		State.P.Send(Notification{
+			Msg: State.SenderStyle.Render(msg.From) +
+				State.TypeStyle.Render(" to you") +
+				" " + msg.Body,
+		})
+	}
+
 }
 
 func handleIncomingPresences(presence *stanzas.Presence) {
@@ -47,28 +58,3 @@ func handleIncomingPresences(presence *stanzas.Presence) {
 func handleIncomingIQ(iq *stanzas.IQ) {
 
 }
-
-//func handleIncoming(client *protocol.Client, p *tea.Program, m *LoggedInMenu) {
-//	client.Send <- &stanzas.Presence{}
-//	for stanza := range client.Receive {
-//		switch stanza := stanza.(type) {
-//		case *stanzas.Message:
-//			if stanza.From != "" && stanza.Body != "" {
-//				p.Send(notification{
-//					text: m.senderStyle.Render(stanza.From) +
-//						m.typeStyle.Render(" to you") +
-//						": " + stanza.Body,
-//				})
-//			}
-//		case *stanzas.Presence:
-//			switch stanza.Type {
-//			case "subscribed":
-//				p.Send(notification{m.alertStyle.Render(stanza.From + " accepted your friend request!")})
-//			case "unsubscribed":
-//				p.Send(notification{m.alertStyle.Render(stanza.From + " has stopped being friend.")})
-//			case "subscribe":
-//				p.Send(friendRequest{stanza.From})
-//			}
-//		}
-//	}
-//}
