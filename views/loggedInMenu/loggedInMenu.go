@@ -6,28 +6,31 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 	"github.com/el-mendez/redes-proyecto1/views"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/gotFriendRequest"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/joinGroupScreen"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendFriendRequestScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendGroupMessageScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendMessageScreen"
 	"strings"
 )
 
 var options = []string{"Send a message", "Send a group message", "Send a friend request", "Join a group chat",
-	"Change your status", "Send a file", "Mostrar todos los contactos",
-	"Detalles de un contacto", "Delete Account", "Logout"}
+	"Change your status", "Send a file", "Show all your contacts", "Show a contact details",
+	"Delete Account", "Logout"}
+
 var screens = [8]views.Screen{
 	sendMessageScreen.New(),
 	sendGroupMessageScreen.New(),
-	joinGroupScreen.New(),
+	sendFriendRequestScreen.New(),
 	joinGroupScreen.New(),
 }
 
 type LoggedInMenu struct {
-	inMenu        bool
 	selected      int
 	selectedStyle lipgloss.Style
 	vp            viewport.Model
 	content       *strings.Builder
+	currentScreen views.Screen
 }
 
 func (m *LoggedInMenu) Init() tea.Cmd {
@@ -36,31 +39,35 @@ func (m *LoggedInMenu) Init() tea.Cmd {
 
 func New() *LoggedInMenu {
 	return &LoggedInMenu{
-		inMenu: true,
-		vp:     viewport.New(30, 10),
+		vp: viewport.New(30, 10),
 		selectedStyle: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("5")).
 			Bold(true),
-		content: &strings.Builder{},
+		content:       &strings.Builder{},
+		currentScreen: nil,
 	}
 }
 
 func (m *LoggedInMenu) Focus() {
-	m.inMenu = true
+	m.currentScreen = nil
 	m.selected = 0
 }
 
 func (m *LoggedInMenu) Blur() {
-	m.inMenu = true
+	if m.currentScreen != nil {
+		m.currentScreen.Blur()
+		m.currentScreen = nil
+	}
 	m.selected = 0
 	m.content.Reset()
+	m.vp.SetContent("")
 }
 
 func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Force return to menu
-	if utils.IsCtrlQ(msg) && !m.inMenu {
-		screens[m.selected].Blur()
-		m.inMenu = true
+	if utils.IsCtrlQ(msg) && m.currentScreen != nil {
+		m.currentScreen.Blur()
+		m.currentScreen = nil
 		return m, nil
 	}
 
@@ -76,13 +83,22 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.content.WriteString(msg.Msg)
 		m.vp.SetContent(m.content.String())
 		m.vp.GotoBottom()
-		m.inMenu = true
-		if m.selected < len(options) {
-			screens[m.selected].Blur()
+
+		if m.currentScreen != nil {
+			m.currentScreen.Blur()
+			m.currentScreen = nil
 		}
 	}
 
-	if m.inMenu {
+	if msg, ok := msg.(views.FriendRequest); ok {
+		if m.currentScreen != nil {
+			m.currentScreen.Blur()
+		}
+
+		m.currentScreen = gotFriendRequest.New(msg.From)
+	}
+
+	if m.currentScreen == nil {
 		// Enter an option menu
 		if msg, ok := msg.(tea.KeyMsg); ok {
 			switch msg.Type {
@@ -94,8 +110,8 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, logout
 				}
 
-				m.inMenu = false
-				screens[m.selected].Focus()
+				m.currentScreen = screens[m.selected]
+				m.currentScreen.Focus()
 
 			case tea.KeyUp:
 				m.selected = utils.EuclideanModule(m.selected-1, len(options))
@@ -106,13 +122,13 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	return screens[m.selected].Update(msg)
+	return m.currentScreen.Update(msg)
 }
 
 func (m *LoggedInMenu) View() string {
-	if m.inMenu {
+	if m.currentScreen == nil {
 		return utils.ViewMenu(m.vp.View(), m.selected, &options, &m.selectedStyle, nil)
 	}
 
-	return m.vp.View() + "\n\n" + screens[m.selected].View()
+	return m.vp.View() + "\n\n" + m.currentScreen.View()
 }

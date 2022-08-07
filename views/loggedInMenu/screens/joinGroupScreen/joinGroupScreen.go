@@ -23,7 +23,7 @@ func New() *joinGroupScreen {
 
 	aliasInput := textinput.New()
 	aliasInput.Placeholder = "alias"
-	groupInput.Prompt = ""
+	aliasInput.Prompt = ""
 
 	return &joinGroupScreen{groupInput, aliasInput, false}
 }
@@ -84,5 +84,5 @@ func (s *joinGroupScreen) View() string {
 		return fmt.Sprintf("Enter the name of the group you want to sent a message to: %s\n\n\n(press Ctrl+Q to go back)", s.groupInput.View())
 	}
 
-	return fmt.Sprintf("Enter the name of the group you want to sent a message to: %s\nWhat do you want to be called by?: %s\n\n(press Ctrl+Q to go back)", s.groupInput.View(), s.aliasInput.View())
+	return fmt.Sprintf("Enter the name of the group you want to sent a message to: %s\nWhat do you want to be called by? %s\n\n(press Ctrl+Q to go back)", s.groupInput.View(), s.aliasInput.View())
 }

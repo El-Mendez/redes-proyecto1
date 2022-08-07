@@ -22,6 +22,7 @@ func (s *signUpScreen) Init() tea.Cmd { return nil }
 func New() *signUpScreen {
 	usernameInput := textinput.New()
 	usernameInput.Prompt = ""
+	usernameInput.Placeholder = "testing@alumchat.fun"
 
 	spin := spinner.New()
 	spin.Spinner = spinner.Dot
