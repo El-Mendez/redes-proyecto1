@@ -11,6 +11,7 @@ import (
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendFriendRequestScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendGroupMessageScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendMessageScreen"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/setStatusScreen"
 	"strings"
 )
 
@@ -23,6 +24,7 @@ var screens = [8]views.Screen{
 	sendGroupMessageScreen.New(),
 	sendFriendRequestScreen.New(),
 	joinGroupScreen.New(),
+	setStatusScreen.New(),
 }
 
 type LoggedInMenu struct {
