@@ -8,7 +8,7 @@ import (
 
 var Logger *zap.SugaredLogger
 
-func InitializeLogger(configFile string) {
+func InitializeLogger(configFile string, ignore bool) {
 	content, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		panic("Could not read logging configuration.")
@@ -17,6 +17,10 @@ func InitializeLogger(configFile string) {
 	var cfg zap.Config
 	if err := json.Unmarshal(content, &cfg); err != nil {
 		panic("Logging configuration is not valid.")
+	}
+
+	if ignore {
+		cfg.OutputPaths = []string{}
 	}
 
 	log, err := cfg.Build()

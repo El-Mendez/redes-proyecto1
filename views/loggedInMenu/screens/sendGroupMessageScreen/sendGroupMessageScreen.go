@@ -20,7 +20,6 @@ func (s *sendMessageScreen) Init() tea.Cmd { return nil }
 func New() *sendMessageScreen {
 	usernameInput := textinput.New()
 	usernameInput.Placeholder = "testing@conference.alumchat.fun"
-	usernameInput.Prompt = ""
 
 	contentInput := textarea.New()
 	contentInput.Placeholder = "Enter your message here..."
@@ -81,7 +80,7 @@ func (s *sendMessageScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *sendMessageScreen) View() string {
 	if s.awaitingUsername {
-		return fmt.Sprintf("Enter the name of the group you want to sent a message to: %s\n\n(press Ctrl+Q to go back)", s.usernameInput.View())
+		return fmt.Sprintf("Enter the name of the group you want to sent a message to:\n%s\n\n(press Ctrl+Q to go back)", s.usernameInput.View())
 	}
 
 	return s.contentInput.View() + "\n\n(press Ctrl+Q to go back)"

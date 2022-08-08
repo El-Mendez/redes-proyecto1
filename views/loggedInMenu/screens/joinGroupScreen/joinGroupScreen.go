@@ -19,7 +19,6 @@ func (s *joinGroupScreen) Init() tea.Cmd { return nil }
 func New() *joinGroupScreen {
 	groupInput := textinput.New()
 	groupInput.Placeholder = "testing@conference.alumchat.fun"
-	groupInput.Prompt = ""
 
 	aliasInput := textinput.New()
 	aliasInput.Placeholder = "alias"
@@ -81,8 +80,8 @@ func (s *joinGroupScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *joinGroupScreen) View() string {
 	if s.awaitingGroup {
-		return fmt.Sprintf("Enter the name of the group you want to sent a message to: %s\n\n\n(press Ctrl+Q to go back)", s.groupInput.View())
+		return fmt.Sprintf("Enter the name of the group you want to sent a message to:\n %s\n\n\n(press Ctrl+Q to go back)", s.groupInput.View())
 	}
 
-	return fmt.Sprintf("Enter the name of the group you want to sent a message to: %s\nWhat do you want to be called by? %s\n\n(press Ctrl+Q to go back)", s.groupInput.View(), s.aliasInput.View())
+	return fmt.Sprintf("Enter the name of the group you want to sent a message to:\n %s\nWhat do you want to be called by? %s\n\n(press Ctrl+Q to go back)", s.groupInput.View(), s.aliasInput.View())
 }

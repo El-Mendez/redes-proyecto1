@@ -53,6 +53,37 @@ func handleIncomingMessages(msg *stanzas.Message) {
 }
 
 func handleIncomingPresences(presence *stanzas.Presence) {
+	// Handle subscription
+	switch presence.Type {
+	case "subscribed":
+		State.P.Send(Notification{State.AlertStyle.Render(presence.From + " accepted your friend request!")})
+		return
+	case "unsubscribed":
+		State.P.Send(Notification{State.AlertStyle.Render(presence.From + " has stopped being your friend.")})
+		return
+	case "subscribe":
+		State.P.Send(FriendRequest{From: presence.From})
+		return
+	case "unavailable":
+		jid, ok := protocol.JIDFromString(presence.From)
+		if !ok || jid.DeviceName == "" {
+			return
+		}
+
+		State.FriendsMutex.Lock()
+		defer State.FriendsMutex.Unlock()
+
+		if friend, ok := State.Friends[jid.BaseJid()]; ok {
+			if _, ok := friend[jid.DeviceName]; ok {
+				delete(friend, jid.DeviceName)
+			}
+		}
+
+		State.P.Send(Notification{State.AlertStyle.Render(presence.From + " has disconnected.")})
+		return
+	}
+
+	// Regular status change
 	switch presence.Show {
 	case "chat":
 		State.P.Send(Notification{State.AlertStyle.Render(presence.From + " is Available")})
@@ -72,13 +103,22 @@ func handleIncomingPresences(presence *stanzas.Presence) {
 		State.P.Send(Notification{State.AlertStyle.Render(presence.From + " changed his state to: " + data)})
 	}
 
-	switch presence.Type {
-	case "subscribed":
-		State.P.Send(Notification{State.AlertStyle.Render(presence.From + " accepted your friend request!")})
-	case "unsubscribed":
-		State.P.Send(Notification{State.AlertStyle.Render(presence.From + " has stopped being your friend.")})
-	case "subscribe":
-		State.P.Send(FriendRequest{From: presence.From})
+	jid, ok := protocol.JIDFromString(presence.From)
+	if !ok || jid.DeviceName == "" {
+		return
+	}
+
+	State.FriendsMutex.Lock()
+	defer State.FriendsMutex.Unlock()
+
+	if friend, ok := State.Friends[jid.BaseJid()]; ok {
+		if _, ok := friend[jid.DeviceName]; !ok {
+			State.P.Send(Notification{State.AlertStyle.Render(presence.From) + " has connected. "})
+		}
+		if presence.Show == "" {
+			presence.Show = "chat"
+		}
+		friend[jid.DeviceName] = &Device{Show: presence.Show, Status: presence.Status}
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	utils "github.com/el-mendez/redes-proyecto1/util"
@@ -11,7 +12,10 @@ import (
 )
 
 func main() {
-	utils.InitializeLogger("./log.conf.json")
+	debug := flag.Bool("debug", false, "Should you log all debug data?")
+	flag.Parse()
+
+	utils.InitializeLogger("./log.conf.json", !*debug)
 
 	m := initialModel()
 	m.mainMenu.Focus()
