@@ -2,6 +2,7 @@ package stanzas
 
 import "encoding/xml"
 
+// Message basic message stanza structure.
 type Message struct {
 	XMLName xml.Name `xml:"message"`
 	ID      string   `xml:"id,attr,omitempty"`

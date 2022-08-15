@@ -12,6 +12,7 @@ import (
 
 const PORT = 5222
 
+// Stream is a TCP connection abstraction with capabilities for sending XML data
 type Stream struct {
 	conn    net.Conn
 	decoder *xml.Decoder
@@ -76,7 +77,7 @@ func MakeStream(domain string) *Stream {
 	return stream
 }
 
-// Restart recreates a stream with the server when the server state resets.
+// Restart recreates a stream with the server when the server state resets (like when logging-in).
 func (stream *Stream) Restart(domain string) error {
 	// Focus the stream
 	if err := stream.Write([]byte("<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' " +
@@ -136,12 +137,14 @@ func (stream *Stream) nextTag() (*xml.StartElement, error) {
 	}
 }
 
+// writeToken writes a xml token (like opening or closing bracket) to the stream.
 func writeToken(enc *xml.Encoder, token xml.Token) {
 	utils.Successful(enc.EncodeToken(token), "Could not encode token %v")
 	utils.Successful(enc.Flush(), "Could not flush after writing token %v")
 }
 
-// nextElement returns the opening tag of the next XML element and the complete element in []byte form.
+// nextElement returns the opening tag of the next XML element and the complete element in []byte form. Under normal
+// circumstances this function should not be used. Instead, try NextElement.
 func (stream *Stream) nextElement() (*xml.StartElement, []byte, error) {
 	var temp struct {
 		Inner []byte `xml:",innerxml"`

@@ -11,25 +11,32 @@ import (
 	"net"
 )
 
+// Client is an abstraction of a xml stream to allow for easier use. Handles authentication.
 type Client struct {
-	stream  *Stream
-	jid     *JID
+	stream *Stream
+	jid    *JID
+	// Send and Receive are channels that allow to send Stanzas through the stream from outside the client.
 	Send    chan<- stanzas.Stanza
 	Receive <-chan stanzas.Stanza
 
+	// outgoing and incoming are the private ends of the Send and Receive channels.
 	outgoing <-chan stanzas.Stanza
 	incoming chan<- stanzas.Stanza
+	// Shows if the stream is closed. Used for parallelism.
 	isClosed utils.AtomicBool
 }
 
+// FullJid returns the jid of the logged-in user in their full form.
 func (client *Client) FullJid() string {
 	return client.jid.String()
 }
 
+// BaseJid returns the FullJid without the resource.
 func (client *Client) BaseJid() string {
 	return client.jid.BaseJid()
 }
 
+// SignUp creates a client and an account. May return an error.
 func SignUp(jid *JID, password string) (*Client, error) {
 	utils.Logger.Info("Attempting to create channel and signup.")
 
@@ -41,6 +48,7 @@ func SignUp(jid *JID, password string) (*Client, error) {
 	client := &Client{jid: jid, stream: stream}
 	id := stanzas.GenerateID()
 
+	// Create the Sign-up request stanza
 	var request stanzas.Stanza = &stanzas.IQ{
 		ID:   id,
 		Type: "set",
@@ -49,6 +57,7 @@ func SignUp(jid *JID, password string) (*Client, error) {
 			Password: password,
 		},
 	}
+	// Send the sign-up request Stanza
 	utils.Successful(client.sendStanza(request), "Could not send signup Stanza.")
 
 	response, err := client.getStanza()
@@ -70,6 +79,7 @@ func SignUp(jid *JID, password string) (*Client, error) {
 	return logIn(jid, password, stream)
 }
 
+// LogIn returns a new authenticated client. Needs an account that already exists, and its matching password
 func LogIn(jid *JID, password string) (*Client, error) {
 	utils.Logger.Info("Attempting to create channel and login.")
 
@@ -81,6 +91,8 @@ func LogIn(jid *JID, password string) (*Client, error) {
 	return logIn(jid, password, stream)
 }
 
+// logIn is a private method to authenticate and bind a xml stream to the corresponding server. Needs a username and password.
+// Only intended for internal use in SignUp and LogIn.
 func logIn(jid *JID, password string, stream *Stream) (*Client, error) {
 	toServer := make(chan stanzas.Stanza)
 	fromServer := make(chan stanzas.Stanza)
@@ -104,15 +116,18 @@ func logIn(jid *JID, password string, stream *Stream) (*Client, error) {
 
 	client.bind()
 
+	// Generate two goroutines for async sending and receiving messages.
 	go client.pipeReceiving()
 	go client.handleSending()
 
 	return client, nil
 }
 
+// authorize sends an authorization stanza through a stream. Currently, it only supports PLAIN authorization. Basically
+// only encoding the username and password using base64.
 func (client *Client) authorize(password string) error {
 	secret := base64.StdEncoding.EncodeToString([]byte("\x00" + client.jid.Username + "\x00" + password))
-	// this should be safe because base64 does not contain XML private characters
+	// this should be xml safe because base64 does not contain XML private characters
 	err := client.stream.Write([]byte("<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>" + secret + "</auth>"))
 	if err != nil {
 		utils.Logger.Errorf("Could not send login request")
@@ -134,13 +149,14 @@ func (client *Client) authorize(password string) error {
 		utils.Logger.Info("Could not log in. Incorrect password or account")
 		return fmt.Errorf("not authorized")
 	default:
-		// idk, packages were lost I suppose
+		// IDK, packages were lost I suppose
 		utils.Logger.Errorf("Expected success/failure tag at log in but got: . %s", tag.Name)
 		return fmt.Errorf("internet connection")
 	}
 
 }
 
+// Close logs out and cleans up resources used by the client
 func (client *Client) Close() {
 	client.isClosed.Set(true)
 
@@ -150,21 +166,12 @@ func (client *Client) Close() {
 	client.stream.Close()
 }
 
-func (client *Client) SendMessage(to string, body string) {
-	var message stanzas.Stanza = &stanzas.Message{
-		Type: "chat",
-		To:   to,
-		From: client.jid.String(),
-		Body: body,
-	}
-
-	client.Send <- message
-}
-
+// bind the client to the xmpp server.
 func (client *Client) bind() {
 	// Build the request IQ
 	utils.Logger.Info("Attempting to bind")
 
+	// Create the bind request stanza.
 	var request stanzas.Stanza = &stanzas.IQ{
 		ID:   stanzas.GenerateID(),
 		Type: "set",
@@ -198,10 +205,7 @@ func (client *Client) bind() {
 	*client.jid = jid
 }
 
-func (client *Client) askRoster() {
-
-}
-
+// DeleteAccount logs out, deletes the account and collects the resources used by the client.
 func (client *Client) DeleteAccount() error {
 	utils.Logger.Info("Attempting to delete account.")
 
@@ -234,6 +238,8 @@ func (client *Client) DeleteAccount() error {
 	return nil
 }
 
+// sendStanza just sends a Stanza through the xml stream that the client owns. It is intended only for private use.
+// To send Stanza the Send channel of the client should be used to safely handle the async characteristic of the connection.
 func (client *Client) sendStanza(s stanzas.Stanza) error {
 	data, err := xml.Marshal(s)
 	if err != nil {
@@ -242,6 +248,8 @@ func (client *Client) sendStanza(s stanzas.Stanza) error {
 	return client.stream.Write(data)
 }
 
+// getStanza is the counterpart of sendStanza. It just receives a stanza through the channel. This function should not
+// be used directly; instead use the Receive channel of client to handle async better.
 func (client *Client) getStanza() (stanzas.Stanza, error) {
 	tag, stanza, err := client.stream.NextElement()
 	if err != nil {
@@ -271,6 +279,8 @@ func (client *Client) getStanza() (stanzas.Stanza, error) {
 	return nil, nil
 }
 
+// handleSending handles the Send channel and sends its contents through the xml Stream. Should only be used when
+// privately creating the client and activated with a goroutine.
 func (client *Client) handleSending() {
 	for s := range client.outgoing {
 		err := client.sendStanza(s)
@@ -280,6 +290,8 @@ func (client *Client) handleSending() {
 	}
 }
 
+// pipeReceiving works like handleSending. It pipes the xml Stream incoming stanzas to the client Receive channel.
+// This function should not be used directly, except by the client itself while creating itself in a goroutine.
 func (client *Client) pipeReceiving() {
 	for !client.isClosed.Get() {
 		s, err := client.getStanza()

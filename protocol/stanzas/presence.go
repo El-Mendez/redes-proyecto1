@@ -2,6 +2,7 @@ package stanzas
 
 import "encoding/xml"
 
+// Presence General use Presence Stanza.
 type Presence struct {
 	XMLName xml.Name `xml:"presence"`
 	ID      string   `xml:"id,attr,omitempty"`

@@ -8,6 +8,8 @@ import (
 
 var Logger *zap.SugaredLogger
 
+// InitializeLogger creates de Debug logger following the configuration details file. If ignore is used, then all
+// non-errors messages will be ignored.
 func InitializeLogger(configFile string, ignore bool) {
 	content, err := ioutil.ReadFile(configFile)
 	if err != nil {
