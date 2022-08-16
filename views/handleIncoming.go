@@ -137,5 +137,12 @@ func handleIncomingIQ(iq *stanzas.IQ) {
 				}
 			}
 		}
+	case *query.OpenIBBQuery:
+		// TODO the rest of states
+		if iq.Type != "error" {
+			State.P.Send(FileRequest{iq.From, q.Sid, iq.ID})
+		} else {
+			State.P.Send(NotificationAndBack{State.AlertStyle.Render("Could not send file.")})
+		}
 	}
 }

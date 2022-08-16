@@ -6,9 +6,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 	"github.com/el-mendez/redes-proyecto1/views"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/gotFileRequest"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/gotFriendRequest"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/joinGroupScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/seeFriendsScreen"
+	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendFileRequestScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendFriendRequestScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendGroupMessageScreen"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu/screens/sendMessageScreen"
@@ -26,7 +28,7 @@ var screens = [8]views.Screen{
 	sendFriendRequestScreen.New(),
 	joinGroupScreen.New(),
 	setStatusScreen.New(),
-	setStatusScreen.New(), // TODO replace with sending a file
+	sendFileRequestScreen.New(),
 	seeFriendsScreen.New(),
 }
 
@@ -99,8 +101,14 @@ func (m *LoggedInMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.currentScreen != nil {
 			m.currentScreen.Blur()
 		}
-
 		m.currentScreen = gotFriendRequest.New(msg.From)
+	}
+
+	if msg, ok := msg.(views.FileRequest); ok {
+		if m.currentScreen != nil {
+			m.currentScreen.Blur()
+		}
+		m.currentScreen = gotFileRequest.New(msg.From, msg.Sid, msg.Id)
 	}
 
 	if m.currentScreen == nil {

@@ -65,6 +65,12 @@ func (iq *IQ) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				q = &query.RegisterQuery{}
 			case query.ROSTER_QUERY_XML_NAME:
 				q = &query.RosterQuery{}
+			case query.OPEN_IBB_XML_NAME:
+				q = &query.OpenIBBQuery{}
+			case query.DATA_IBB_XML_NAME:
+				q = &query.IBBDataQuery{}
+			case query.CLOSE_IBB_XML_NAME:
+				q = &query.CloseIBBQuery{}
 			}
 			// if it's a known Query instance then decode it
 			if q != nil {

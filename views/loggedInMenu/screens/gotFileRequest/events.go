@@ -1,0 +1,26 @@
+package gotFileRequest
+
+import (
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/el-mendez/redes-proyecto1/protocol/stanzas"
+	"github.com/el-mendez/redes-proyecto1/views"
+)
+
+func acceptFileRequest(from string, id string, sid string, filename string) tea.Cmd {
+	return func() tea.Msg {
+		// TODO handle everything else
+		views.State.Client.Send <- &stanzas.IQ{ID: id, Type: "result", To: from}
+		return views.NotificationAndBack{
+			Msg: views.State.AlertStyle.Render("You accepted a file from " + from + " with the name " + filename),
+		}
+	}
+}
+
+func rejectFileRequest(from string, id string) tea.Cmd {
+	return func() tea.Msg {
+		views.State.Client.Send <- &stanzas.IQ{ID: id, Type: "error", To: from}
+		return views.NotificationAndBack{
+			Msg: views.State.AlertStyle.Render("You did not accept a file from " + from),
+		}
+	}
+}

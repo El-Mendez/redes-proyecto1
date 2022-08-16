@@ -24,3 +24,9 @@ type NotificationAndBack struct {
 type FriendRequest struct {
 	From string
 }
+
+type FileRequest struct {
+	From string
+	Sid  string
+	Id   string
+}
