@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	utils "github.com/el-mendez/redes-proyecto1/util"
+	"os"
 )
 
 var options = []string{"Accept", "Reject"}
@@ -25,7 +26,11 @@ func (s *FileRequestScreen) Init() tea.Cmd {
 
 func New(username string, sid string, id string) *FileRequestScreen {
 	input := textinput.New()
-	input.Placeholder = "example.txt"
+	if dir, err := os.Getwd(); err == nil {
+		input.Placeholder = dir
+	} else {
+		input.Placeholder = "test.txt"
+	}
 
 	return &FileRequestScreen{
 		username:      username,

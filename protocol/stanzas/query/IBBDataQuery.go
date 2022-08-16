@@ -2,7 +2,7 @@ package query
 
 import "encoding/xml"
 
-var DATA_IBB_XML_NAME = xml.Name{"http://jabber.org/protocol/ibb", "open"}
+var DATA_IBB_XML_NAME = xml.Name{"http://jabber.org/protocol/ibb", "data"}
 
 type IBBDataQuery struct {
 	XMLName  xml.Name `xml:"http://jabber.org/protocol/ibb data"`

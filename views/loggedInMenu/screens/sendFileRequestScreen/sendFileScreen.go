@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/el-mendez/redes-proyecto1/protocol"
 	utils "github.com/el-mendez/redes-proyecto1/util"
+	"os"
 )
 
 type sendFriendRequestScreen struct {
@@ -21,7 +22,11 @@ func New() *sendFriendRequestScreen {
 	usernameInput.Prompt = ""
 
 	fileInput := textinput.New()
-	fileInput.Placeholder = "test.txt"
+	if dir, err := os.Getwd(); err == nil {
+		fileInput.Placeholder = dir
+	} else {
+		fileInput.Placeholder = "test.txt"
+	}
 	fileInput.Prompt = ""
 
 	return &sendFriendRequestScreen{usernameInput, fileInput}

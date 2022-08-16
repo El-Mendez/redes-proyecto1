@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/el-mendez/redes-proyecto1/protocol/stanzas"
 	utils "github.com/el-mendez/redes-proyecto1/util"
 	"github.com/el-mendez/redes-proyecto1/views"
 	"github.com/el-mendez/redes-proyecto1/views/loggedInMenu"
@@ -59,6 +60,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		views.State.FriendsMutex.Lock()
 		views.State.Friends = make(map[string]map[string]*views.Device)
 		views.State.FriendsMutex.Unlock()
+
+		views.State.ChannelsMutex.Lock()
+		views.State.Channels = make(map[string]chan<- *stanzas.IQ)
+		views.State.ChannelsMutex.Unlock()
+
+		views.State.FileMutex.Lock()
+		views.State.FileTransactions = make(map[string]*views.FileStatus)
+		views.State.FileMutex.Unlock()
 
 		go views.HandleIncoming(msg.Client)
 		m.mainMenu.Blur()

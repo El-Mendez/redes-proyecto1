@@ -12,19 +12,20 @@ A single implementation of the XMPP protocol. It allows for basic messaging.
 
 ## Features
 - [x] Register a new account
-- [x] Log-in
+- [x] Log-in 
+- [x] Sign-up (XEP-0077)
 - [x] Log-out
-- [x] Delete Account
+- [x] Delete Account (XEP-0077)
 - [x] Show roster and their statuses
 - [x] Add a contact (subscribe to them)
 - [x] 1 to 1 communication
-- [ ] Group chat
+- [ ] Group chat (XEP-0045)
     - [x] Join a group
     - [x] Send and receive group messages
     - [ ] Create and administrate a group
 - [x] Set Presence
 - [x] Notifications
-- [ ] Send and receive files
+- [x] Send and receive files (XEP-0047)
 
 ## External Libraries used
 - Zap (for logging)
@@ -36,5 +37,7 @@ Requirements:
 
 ```cmd
 git clone git@github.com:El-Mendez/redes-proyecto1.git
+cd redes-proyecto1
 go build
+./redes-proyecto1.exe
 ```

@@ -8,7 +8,10 @@ import (
 
 func acceptFileRequest(from string, id string, sid string, filename string) tea.Cmd {
 	return func() tea.Msg {
-		// TODO handle everything else
+		views.State.FileMutex.Lock()
+		views.State.FileTransactions[sid] = &views.FileStatus{Filename: filename}
+		views.State.FileMutex.Unlock()
+
 		views.State.Client.Send <- &stanzas.IQ{ID: id, Type: "result", To: from}
 		return views.NotificationAndBack{
 			Msg: views.State.AlertStyle.Render("You accepted a file from " + from + " with the name " + filename),

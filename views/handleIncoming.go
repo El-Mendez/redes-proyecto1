@@ -1,9 +1,11 @@
 package views
 
 import (
+	"encoding/base64"
 	"github.com/el-mendez/redes-proyecto1/protocol"
 	"github.com/el-mendez/redes-proyecto1/protocol/stanzas"
 	"github.com/el-mendez/redes-proyecto1/protocol/stanzas/query"
+	"os"
 )
 
 func HandleIncoming(client *protocol.Client) {
@@ -123,6 +125,13 @@ func handleIncomingPresences(presence *stanzas.Presence) {
 }
 
 func handleIncomingIQ(iq *stanzas.IQ) {
+	State.ChannelsMutex.Lock()
+	defer State.ChannelsMutex.Unlock()
+
+	if channel, ok := State.Channels[iq.ID]; ok {
+		channel <- iq
+	}
+
 	switch q := iq.Query.(type) {
 	case *query.RosterQuery:
 		if iq.Type == "result" || iq.Type == "set" {
@@ -138,11 +147,33 @@ func handleIncomingIQ(iq *stanzas.IQ) {
 			}
 		}
 	case *query.OpenIBBQuery:
-		// TODO the rest of states
-		if iq.Type != "error" {
-			State.P.Send(FileRequest{iq.From, q.Sid, iq.ID})
-		} else {
-			State.P.Send(NotificationAndBack{State.AlertStyle.Render("Could not send file.")})
+		State.P.Send(FileRequest{From: iq.From, Sid: q.Sid, Id: iq.ID})
+	case *query.IBBDataQuery:
+		State.FileMutex.Lock()
+		if transaction, ok := State.FileTransactions[q.Sid]; ok {
+			transaction.Content.WriteString(q.Value)
+		}
+		State.FileMutex.Unlock()
+
+		State.Client.Send <- &stanzas.IQ{ID: iq.ID, Type: "result", To: iq.From}
+	case *query.CloseIBBQuery:
+		State.FileMutex.Lock()
+		data, ok := State.FileTransactions[q.Sid]
+		if ok {
+			delete(State.FileTransactions, q.Sid)
+		}
+		State.FileMutex.Unlock()
+
+		if !ok {
+			return
+		}
+
+		if contents, err := base64.StdEncoding.DecodeString(data.Content.String()); err == nil {
+			if err := os.WriteFile(data.Filename, contents, 0777); err == nil {
+				State.P.Send(Notification{State.AlertStyle.Render("You successfully got " + data.Filename)})
+			} else {
+				State.P.Send(Notification{State.AlertStyle.Render(data.Filename + " could not be saved.")})
+			}
 		}
 	}
 }
